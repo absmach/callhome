@@ -17,9 +17,9 @@ services:
     volumes:
       - callhome-timescaledb-data:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: ${MF_CALLHOME_TIMESCALE_PASSWORD}
-      POSTGRES_USER: ${MF_CALLHOME_TIMESCALE_USER}
-      POSTGRES_DB: ${MF_CALLHOME_TIMESCALE_DB_NAME}
+      POSTGRES_PASSWORD: ${MG_CALLHOME_TIMESCALE_PASSWORD}
+      POSTGRES_USER: ${MG_CALLHOME_TIMESCALE_USER}
+      POSTGRES_DB: ${MG_CALLHOME_TIMESCALE_DB_NAME}
     networks:
       - callhome-base-net
   callhome-server:
@@ -59,9 +59,9 @@ services:
     image: jaegertracing/all-in-one:1.46.0
     container_name: magistrala-jaeger
     ports:
-      - ${MF_JAEGER_PORT}:${MF_JAEGER_PORT}/udp
-      - ${MF_JAEGER_FRONTEND}:${MF_JAEGER_FRONTEND}
-      - ${MF_JAEGER_COLLECTOR}:${MF_JAEGER_COLLECTOR}
-      - ${MF_JAEGER_CONFIGS}:${MF_JAEGER_CONFIGS}
+      - ${MG_JAEGER_PORT}:${MG_JAEGER_PORT}/udp
+      - ${MG_JAEGER_FRONTEND}:${MG_JAEGER_FRONTEND}
+      - ${MG_JAEGER_COLLECTOR}:${MG_JAEGER_COLLECTOR}
+      - ${MG_JAEGER_CONFIGS}:${MG_JAEGER_CONFIGS}
     networks:
       - callhome-base-net
