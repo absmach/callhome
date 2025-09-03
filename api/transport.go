@@ -133,6 +133,8 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		err == ErrLimitSize,
 		err == ErrOffsetSize:
 		w.WriteHeader(http.StatusBadRequest)
+	case err == ErrUnsupportedContentType:
+		w.WriteHeader(http.StatusUnsupportedMediaType)
 	case errors.Is(err, timescale.ErrInvalidEvent):
 		w.WriteHeader(http.StatusForbidden)
 	case errors.Is(err, timescale.ErrSaveEvent),

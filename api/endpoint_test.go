@@ -60,24 +60,41 @@ func TestEndpointSave(t *testing.T) {
 	server := httptest.NewServer(h)
 	client := server.Client()
 	testCases := []struct {
-		test, body, contetType string
-		statuscode             int
+		description string
+		body        string
+		contentType string
+		statusCode  int
 	}{
-		{"success", body, "application/json", http.StatusCreated},
-		{"malformed-request", "{}", "application/json", http.StatusBadRequest},
-		{"wrong-content-type", "{}", "application/text", http.StatusUnsupportedMediaType},
+		{
+			description: "success",
+			body:        body,
+			contentType: "application/json",
+			statusCode:  http.StatusCreated,
+		},
+		{
+			description: "malformed-request",
+			body:        "{}",
+			contentType: "application/json",
+			statusCode:  http.StatusBadRequest,
+		},
+		{
+			description: "wrong-content-type",
+			body:        "{}",
+			contentType: "application/text",
+			statusCode:  http.StatusUnsupportedMediaType,
+		},
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.test, func(t *testing.T) {
+		t.Run(testCase.description, func(t *testing.T) {
 			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/telemetry", server.URL), strings.NewReader(testCase.body))
-			if testCase.contetType != "" {
-				req.Header.Set("Content-Type", testCase.contetType)
+			if testCase.contentType != "" {
+				req.Header.Set("Content-Type", testCase.contentType)
 			}
 			assert.Nil(t, err)
 			res, err := client.Do(req)
 			assert.Nil(t, err)
-			assert.Equal(t, testCase.statuscode, res.StatusCode)
+			assert.Equal(t, testCase.statusCode, res.StatusCode)
 		})
 	}
 }

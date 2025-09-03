@@ -72,8 +72,10 @@ func (hs *homingService) CallHome(ctx context.Context) {
 				if len(mac) == 0 {
 					continue // skip interfaces without MAC
 				}
-				macAddr = i.Name
-				break
+				if i.Name != "" {
+					macAddr = i.Name
+					break
+				}
 			}
 			data.MACAddress = macAddr
 			for _, endpoint := range ipEndpoints {
