@@ -7,14 +7,25 @@ import (
 	"net/http"
 
 	"github.com/absmach/callhome"
-	"github.com/absmach/magistrala"
 )
 
+// Response contains HTTP response specific methods.
+type Response interface {
+	// Code returns HTTP response code.
+	Code() int
+
+	// Headers returns map of HTTP headers with their values.
+	Headers() map[string]string
+
+	// Empty indicates if HTTP response has content.
+	Empty() bool
+}
+
 var (
-	_ magistrala.Response = (*uiRes)(nil)
-	_ magistrala.Response = (*saveTelemetryRes)(nil)
-	_ magistrala.Response = (*telemetryPageRes)(nil)
-	_ magistrala.Response = (*telemetrySummaryRes)(nil)
+	_ Response = (*uiRes)(nil)
+	_ Response = (*saveTelemetryRes)(nil)
+	_ Response = (*telemetryPageRes)(nil)
+	_ Response = (*telemetrySummaryRes)(nil)
 )
 
 type saveTelemetryRes struct {

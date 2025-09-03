@@ -61,7 +61,6 @@ type TelemetryRepo interface {
 	// Save persists the telemetry event. A non-nil error is returned to indicate
 	// operation failure.
 	Save(ctx context.Context, t Telemetry) error
-
 	// RetrieveAll retrieves all telemetry events.
 	RetrieveAll(ctx context.Context, pm PageMetadata, filters TelemetryFilters) (TelemetryPage, error)
 	// RetrieveSummary gets distinct countries, cities,services and versions in a summarised form.

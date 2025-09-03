@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestEndpointsRetrieve(t *testing.T) {
@@ -55,7 +56,7 @@ func TestEndpointSave(t *testing.T) {
 		}`
 	svc := mocks.NewService(t)
 	svc.On("Save", mock.Anything, mock.AnythingOfType("callhome.Telemetry")).Return(nil)
-	h := MakeHandler(svc, trace.NewNoopTracerProvider(), slog.Default())
+	h := MakeHandler(svc, noop.NewTracerProvider(), slog.Default())
 	server := httptest.NewServer(h)
 	client := server.Client()
 	testCases := []struct {

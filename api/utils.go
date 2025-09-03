@@ -5,11 +5,11 @@ package api
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
-	"github.com/absmach/magistrala/pkg/errors"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-zoo/bone"
 )

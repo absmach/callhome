@@ -4,9 +4,8 @@
 package api
 
 import (
+	"errors"
 	"time"
-
-	"github.com/absmach/magistrala/pkg/errors"
 )
 
 var (
@@ -16,6 +15,10 @@ var (
 	ErrOffsetSize = errors.New("invalid offset size")
 	// ErrInvalidDateRange indicates date from and to are invalid.
 	ErrInvalidDateRange = errors.New("invalid date range")
+	// ErrMalformedEntity represents malformed entity specification.
+	ErrMalformedEntity = errors.New("malformed entity")
+	// ErrUnsupportedContentType indicates unacceptable or lack of Content-Type.
+	ErrUnsupportedContentType = errors.New("unsupported content type")
 )
 
 const maxLimitSize = 100
@@ -29,14 +32,14 @@ type saveTelemetryReq struct {
 
 func (req saveTelemetryReq) validate() error {
 	if req.Service == "" {
-		return errors.ErrMalformedEntity
+		return ErrMalformedEntity
 	}
 
 	if req.IpAddress == "" {
-		return errors.ErrMalformedEntity
+		return ErrMalformedEntity
 	}
 	if req.Version == "" {
-		return errors.ErrMalformedEntity
+		return ErrMalformedEntity
 	}
 
 	return nil
