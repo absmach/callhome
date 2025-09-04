@@ -49,7 +49,11 @@ func (tst *telemetryServiceTracer) RetrieveSummary(ctx context.Context, filters 
 
 // Save adds tracing middleware to Save.
 func (tst *telemetryServiceTracer) Save(ctx context.Context, t callhome.Telemetry) error {
-	ctx, span := tst.tracer.Start(ctx, saveOp, trace.WithAttributes([]attribute.KeyValue{attribute.String("ip_address", t.IpAddress)}...))
+	ctx, span := tst.tracer.Start(ctx, saveOp, trace.WithAttributes(
+		[]attribute.KeyValue{
+			attribute.String("ip_address", t.IpAddress),
+			attribute.String("mac_address", t.MacAddress),
+		}...))
 	defer span.End()
 	return tst.svc.Save(ctx, t)
 }

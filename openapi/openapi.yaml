@@ -195,6 +195,8 @@ components:
       properties:
         ip_address:
           type: string
+        mac_address:
+          type: string
         service:
           type: string
         magistrala_version:
@@ -206,6 +208,8 @@ components:
         properties:
           ip_address:
             type: string
+          mac_address:
+          type: string
           magistrala_version:
             type: string
           last_seen:
