@@ -16,6 +16,7 @@ type Telemetry struct {
 	Longitude   float64        `json:"longitude,omitempty" db:"longitude"`
 	Latitude    float64        `json:"latitude,omitempty" db:"latitude"`
 	IpAddress   string         `json:"-" db:"ip_address"`
+	MacAddress  string         `json:"-" db:"mac_address"`
 	Version     string         `json:"magistrala_version,omitempty" db:"mg_version"`
 	LastSeen    time.Time      `json:"last_seen" db:"service_time"`
 	Country     string         `json:"country,omitempty" db:"country"`
@@ -61,7 +62,6 @@ type TelemetryRepo interface {
 	// Save persists the telemetry event. A non-nil error is returned to indicate
 	// operation failure.
 	Save(ctx context.Context, t Telemetry) error
-
 	// RetrieveAll retrieves all telemetry events.
 	RetrieveAll(ctx context.Context, pm PageMetadata, filters TelemetryFilters) (TelemetryPage, error)
 	// RetrieveSummary gets distinct countries, cities,services and versions in a summarised form.

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -59,6 +60,24 @@ func (hs *homingService) CallHome(ctx context.Context) {
 				Version:  hs.version,
 				LastSeen: time.Now(),
 			}
+
+			var macAddr string
+			interfaces, err := net.Interfaces()
+			if err != nil {
+				macAddr = ""
+			}
+
+			for _, i := range interfaces {
+				mac := i.HardwareAddr
+				if len(mac) == 0 {
+					continue
+				}
+				if i.Name != "" {
+					macAddr = i.Name
+					break
+				}
+			}
+			data.MACAddress = macAddr
 			for _, endpoint := range ipEndpoints {
 				ip, err := hs.getIP(endpoint)
 				if err != nil {
@@ -72,10 +91,10 @@ func (hs *homingService) CallHome(ctx context.Context) {
 					hs.logger.Warn(fmt.Sprintf("failed to parse ip address with error: %v", err))
 					continue
 				}
-				data.IpAddress = parsedIP.String()
+				data.IPAddress = parsedIP.String()
 				break
 			}
-			if err := hs.send(&data); err != nil && data.IpAddress != "" {
+			if err := hs.send(&data); err != nil && data.IPAddress != "" {
 				hs.logger.Warn(fmt.Sprintf("failed to send Magistrala telemetry data with error: %v", err))
 				time.Sleep(backOff)
 				continue
@@ -97,10 +116,13 @@ func (hs *homingService) Stop() {
 }
 
 type telemetryData struct {
-	Service   string    `json:"service"`
-	IpAddress string    `json:"ip_address"`
-	Version   string    `json:"magistrala_version"`
-	LastSeen  time.Time `json:"last_seen"`
+	Service   string `json:"service"`
+	IPAddress string `json:"ip_address"`
+	// MAC address is used to identify unique machine to avoid duplicates in case
+	// of multiple services running on the same machine (such as a Docker composition).
+	MACAddress string    `json:"mac_address"`
+	Version    string    `json:"magistrala_version"`
+	LastSeen   time.Time `json:"last_seen"`
 }
 
 func (hs *homingService) getIP(endpoint string) (string, error) {

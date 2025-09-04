@@ -4,10 +4,10 @@
 package postgres
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/absmach/callhome/internal/env"
-	"github.com/absmach/magistrala/pkg/errors"
 	_ "github.com/jackc/pgx/v5/stdlib" // required for SQL access
 	"github.com/jmoiron/sqlx"
 	migrate "github.com/rubenv/sql-migrate"
@@ -43,7 +43,7 @@ func Setup(prefix string, migrations migrate.MemoryMigrationSource) (*sqlx.DB, e
 func SetupWithConfig(prefix string, migrations migrate.MemoryMigrationSource, defConfig Config) (*sqlx.DB, error) {
 	cfg := defConfig
 	if err := env.Parse(&cfg, env.Options{Prefix: prefix}); err != nil {
-		return nil, errors.Wrap(errConfig, err)
+		return nil, errors.Join(errConfig, err)
 	}
 	return SetupDB(cfg, migrations)
 }
@@ -67,7 +67,7 @@ func Connect(cfg Config) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open("pgx", url)
 	if err != nil {
-		return nil, errors.Wrap(errConnect, err)
+		return nil, errors.Join(errConnect, err)
 	}
 
 	return db, nil
@@ -77,14 +77,14 @@ func Connect(cfg Config) (*sqlx.DB, error) {
 func MigrateDB(db *sqlx.DB, migrations migrate.MemoryMigrationSource) error {
 	_, err := migrate.Exec(db.DB, "postgres", migrations, migrate.Up)
 	if err != nil {
-		return errors.Wrap(errMigration, err)
+		return errors.Join(errMigration, err)
 	}
 	return nil
 }
 
 func (c *Config) LoadEnv(prefix string) error {
 	if err := env.Parse(c, env.Options{Prefix: prefix}); err != nil {
-		return errors.Wrap(errConfig, err)
+		return errors.Join(errConfig, err)
 	}
 	return nil
 }

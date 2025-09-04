@@ -1,7 +1,7 @@
 # Copyright (c) Abstract Machines
 
 PROGRAM = callhome
-MG_DOCKER_IMAGE_NAME_PREFIX ?= magistrala
+MG_DOCKER_IMAGE_NAME_PREFIX ?= supermq
 SOURCES = $(wildcard *.go) cmd/main.go
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
@@ -37,9 +37,9 @@ endef
 $(PROGRAM): $(SOURCES)
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
 	go build -ldflags "-s -w \
-	-X 'github.com/absmach/magistrala.BuildTime=$(TIME)' \
-	-X 'github.com/absmach/magistrala.Version=$(VERSION)' \
-	-X 'github.com/absmach/magistrala.Commit=$(COMMIT)'" \
+	-X 'github.com/absmach/callhome.BuildTime=$(TIME)' \
+	-X 'github.com/absmach/callhome.Version=$(VERSION)' \
+	-X 'github.com/absmach/callhome.Commit=$(COMMIT)'" \
 	-o ./build/$(PROGRAM)-$(PROGRAM) cmd/main.go
 
 clean:

@@ -95,9 +95,9 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 
 // Save creates record in repo.
 func (r repo) Save(ctx context.Context, t callhome.Telemetry) error {
-	q := `INSERT INTO telemetry (ip_address, longitude, latitude,
+	q := `INSERT INTO telemetry (ip_address, mac_address, longitude, latitude,
 		mg_version, service, time, country, city, service_time)
-		VALUES (:ip_address, :longitude, :latitude,
+		VALUES (:ip_address, :mac_address, :longitude, :latitude,
 			:mg_version, :service, :time, :country, :city, :service_time);`
 
 	tx, err := r.db.BeginTxx(ctx, nil)

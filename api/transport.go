@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -13,13 +14,10 @@ import (
 
 	"github.com/absmach/callhome"
 	"github.com/absmach/callhome/timescale"
-	"github.com/absmach/magistrala"
-	"github.com/absmach/magistrala/pkg/errors"
-	"github.com/absmach/magistrala/pkg/uuid"
+	"github.com/go-chi/chi"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-zoo/bone"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/go-kit/kit/otelkit"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -44,37 +42,41 @@ func MakeHandler(svc callhome.Service, tp trace.TracerProvider, logger *slog.Log
 		kithttp.ServerErrorEncoder(LoggingErrorEncoder(logger, encodeError)),
 	}
 
-	mux := bone.New()
+	mux := chi.NewRouter()
 
-	mux.Post("/telemetry", kithttp.NewServer(
-		otelkit.EndpointMiddleware(otelkit.WithOperation("save"), otelkit.WithTracerProvider(tp))(saveEndpoint(svc)),
-		decodeSaveTelemetryReq,
-		encodeResponse,
-		opts...,
-	))
+	mux.Post("/telemetry",
+		otelhttp.NewHandler(kithttp.NewServer(
+			saveEndpoint(svc),
+			decodeSaveTelemetryReq,
+			encodeResponse,
+			opts...,
+		), "save").ServeHTTP)
 
-	mux.Get("/telemetry", kithttp.NewServer(
-		otelkit.EndpointMiddleware(otelkit.WithOperation("retrieve"), otelkit.WithTracerProvider(tp))(retrieveEndpoint(svc)),
-		decodeRetrieve,
-		encodeResponse,
-		opts...,
-	))
+	mux.Get("/telemetry",
+		otelhttp.NewHandler(kithttp.NewServer(
+			retrieveEndpoint(svc),
+			decodeRetrieve,
+			encodeResponse,
+			opts...,
+		), "retrieve").ServeHTTP)
 
-	mux.Get("/telemetry/summary", kithttp.NewServer(
-		otelkit.EndpointMiddleware(otelkit.WithOperation("retrieve-summary"), otelkit.WithTracerProvider(tp))(retrieveSummaryEndpoint(svc)),
-		decodeRetrieve,
-		encodeResponse,
-		opts...,
-	))
+	mux.Get("/telemetry/summary",
+		otelhttp.NewHandler(kithttp.NewServer(
+			retrieveSummaryEndpoint(svc),
+			decodeRetrieve,
+			encodeResponse,
+			opts...,
+		), "retrieve-summary").ServeHTTP)
 
-	mux.Get("/", kithttp.NewServer(
-		otelkit.EndpointMiddleware(otelkit.WithOperation("serve-ui"), otelkit.WithTracerProvider(tp))(serveUI(svc)),
-		decodeRetrieve,
-		encodeStaticResponse,
-		opts...,
-	))
+	mux.Get("/",
+		otelhttp.NewHandler(kithttp.NewServer(
+			serveUI(svc),
+			decodeRetrieve,
+			encodeStaticResponse,
+			opts...,
+		), "serve-ui").ServeHTTP)
 
-	mux.GetFunc("/health", magistrala.Health("home", "telemetry"))
+	mux.Get("/health", callhome.Health("home", "telemetry"))
 	mux.Handle("/metrics", promhttp.Handler())
 
 	// Static file handler
@@ -108,7 +110,7 @@ func encodeStaticResponse(_ context.Context, w http.ResponseWriter, response int
 }
 
 func encodeResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
-	if ar, ok := response.(magistrala.Response); ok {
+	if ar, ok := response.(Response); ok {
 		for k, v := range ar.Headers() {
 			w.Header().Set(k, v)
 		}
@@ -126,29 +128,20 @@ func encodeResponse(_ context.Context, w http.ResponseWriter, response interface
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	switch {
 	case
-		errors.Contains(err, ErrInvalidQueryParams),
-		errors.Contains(err, errors.ErrMalformedEntity),
+		errors.Is(err, ErrInvalidQueryParams),
+		errors.Is(err, ErrMalformedEntity),
 		err == ErrLimitSize,
 		err == ErrOffsetSize:
 		w.WriteHeader(http.StatusBadRequest)
-	case errors.Contains(err, timescale.ErrInvalidEvent):
-		w.WriteHeader(http.StatusForbidden)
-	case errors.Contains(err, errors.ErrUnsupportedContentType):
+	case err == ErrUnsupportedContentType:
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-	case errors.Contains(err, uuid.ErrGeneratingID):
-		w.WriteHeader(http.StatusInternalServerError)
-	case errors.Contains(err, timescale.ErrSaveEvent),
-		errors.Contains(err, timescale.ErrTransRollback):
+	case errors.Is(err, timescale.ErrInvalidEvent):
+		w.WriteHeader(http.StatusForbidden)
+	case errors.Is(err, timescale.ErrSaveEvent),
+		errors.Is(err, timescale.ErrTransRollback):
 		w.WriteHeader(http.StatusInternalServerError)
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
-	}
-
-	if errorVal, ok := err.(errors.Error); ok {
-		w.Header().Set("Content-Type", contentType)
-		if err := json.NewEncoder(w).Encode(ErrorRes{Err: errorVal.Msg()}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
 	}
 }
 
@@ -222,12 +215,12 @@ func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
 
 func decodeSaveTelemetryReq(_ context.Context, r *http.Request) (interface{}, error) {
 	if !strings.Contains(r.Header.Get("Content-Type"), contentType) {
-		return nil, errors.ErrUnsupportedContentType
+		return nil, ErrUnsupportedContentType
 	}
 
 	var telemetry saveTelemetryReq
 	if err := json.NewDecoder(r.Body).Decode(&telemetry); err != nil {
-		return nil, errors.Wrap(errors.ErrMalformedEntity, err)
+		return nil, errors.Join(ErrMalformedEntity, err)
 	}
 
 	return telemetry, nil
