@@ -70,7 +70,7 @@ func (hs *homingService) CallHome(ctx context.Context) {
 			for _, i := range interfaces {
 				mac := i.HardwareAddr
 				if len(mac) == 0 {
-					continue // skip interfaces without MAC
+					continue
 				}
 				if i.Name != "" {
 					macAddr = i.Name
