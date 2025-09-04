@@ -9,7 +9,7 @@ volumes:
 
 services:
   timescaledb:
-    image: timescale/timescaledb:latest-pg14
+    image: timescale/timescaledb:latest-pg17
     container_name: callhome-timescaledb
     restart: on-failure
     env_file:
@@ -25,7 +25,7 @@ services:
     networks:
       - callhome-base-net
   callhome-server:
-    image: magistrala/callhome:${MG_CALLHOME_RELEASE_TAG}
+    image: supermq/callhome:${MG_CALLHOME_RELEASE_TAG}
     container_name: callhome-server
     depends_on:
       - timescaledb
@@ -59,7 +59,7 @@ services:
       - ./certbot/www:/var/www/certbot
   jaeger:
     image: jaegertracing/all-in-one:1.46.0
-    container_name: magistrala-jaeger
+    container_name: callhome-jaeger
     ports:
       - ${MG_JAEGER_PORT}:${MG_JAEGER_PORT}/udp
       - ${MG_JAEGER_FRONTEND}:${MG_JAEGER_FRONTEND}

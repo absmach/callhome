@@ -1,7 +1,7 @@
 # Copyright (c) Abstract Machines
 
 PROGRAM = callhome
-MG_DOCKER_IMAGE_NAME_PREFIX ?= magistrala
+MG_DOCKER_IMAGE_NAME_PREFIX ?= supermq
 SOURCES = $(wildcard *.go) cmd/main.go
 CGO_ENABLED ?= 0
 GOARCH ?= amd64
