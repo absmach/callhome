@@ -64,16 +64,14 @@ func (hs *homingService) CallHome(ctx context.Context) {
 			var macAddr string
 			interfaces, err := net.Interfaces()
 			if err != nil {
-				macAddr = ""
+				hs.logger.Warn(fmt.Sprintf("failed to obtain MAC address: %v", err))
+				continue
 			}
 
 			for _, i := range interfaces {
 				mac := i.HardwareAddr
-				if len(mac) == 0 {
-					continue
-				}
-				if i.Name != "" {
-					macAddr = i.Name
+				if len(mac) != 0 {
+					macAddr = i.HardwareAddr.String()
 					break
 				}
 			}

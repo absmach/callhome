@@ -55,8 +55,8 @@ run:
 	docker compose -f ./docker/docker-compose.yml up
 
 test:
-	go test -v --race -covermode=atomic -coverprofile cover.out ./...
+	go test -v --race -count=1 -failfast -covermode=atomic -coverprofile cover.out ./...
 
 
 latest: docker-image
-	docker push magistrala/callhome:latest
+	docker push supermq/callhome:latest
