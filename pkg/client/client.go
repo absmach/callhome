@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	HomeUrl           = "https://deployments.magistrala.abstractmachines.fr/telemetry"
+	HomeUrl           = "https://deployments-magistrala.absmach.eu/telemetry"
 	stopWaitTime      = 5 * time.Second
 	callHomeSleepTime = 30 * time.Minute
 	backOff           = 10 * time.Second
