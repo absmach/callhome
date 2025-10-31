@@ -41,5 +41,5 @@ By utilizing Magistrala, you actively contribute to its improvement. Together, w
 [build]: https://github.com/absmach/callhome/actions/workflows/ci.yml/badge.svg
 [LIC]: LICENCE
 [LIC-BADGE]: https://img.shields.io/badge/License-Apache_2.0-blue.svg
-[website]: https://deployments.magistrala.io
+[website]: https://deployments.absmach.eu
 [preview]: /assets/images/website.png
