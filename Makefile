@@ -8,7 +8,7 @@ GOARCH ?= amd64
 VERSION ?= $(shell git describe --abbrev=0 --tags 2>/dev/null || echo "0.13.0")
 COMMIT ?= $(shell git rev-parse HEAD)
 TIME ?= $(shell date +%F_%T)
-DOMAIN ?= deployments.magistrala.abstractmachines.fr
+DOMAIN ?= deployments.absmach.eu
 
 all: $(PROGRAM)
 

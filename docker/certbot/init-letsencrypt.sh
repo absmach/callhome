@@ -5,7 +5,7 @@ if ! [ -x "$(command -v docker compose)" ]; then
   exit 1
 fi
 
-domains=(deployments.magistrala.abstractmachines.fr)
+domains=(deployments.absmach.eu)
 rsa_key_size=4096
 data_path="./certbot"
 email="infos@abstractmachines.fr"
