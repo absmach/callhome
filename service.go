@@ -13,8 +13,10 @@ import (
 	"time"
 )
 
-const pageLimit = 1000
-const summaryCacheTTL = 5 * time.Minute
+const (
+	pageLimit       = 1000
+	summaryCacheTTL = 5 * time.Minute
+)
 
 // Service to receive homing telemetry data, persist and retrieve it.
 type Service interface {
@@ -141,21 +143,21 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 		to = strings.ReplaceAll(to, "Z", "")
 	}
 	data := struct {
-		Countries         string
-		Cities            string
-		FilterCountries   []CountrySummary
-		FilterCities      []string
-		FilterServices    []string
-		FilterVersions    []string
-		NoDeployments     int
-		NoCountries       int
-		MapData           string
-		From              string
-		To                string
-		SelectedCountry   string
-		SelectedCity      string
-		SelectedService   string
-		SelectedVersion   string
+		Countries       string
+		Cities          string
+		FilterCountries []CountrySummary
+		FilterCities    []string
+		FilterServices  []string
+		FilterVersions  []string
+		NoDeployments   int
+		NoCountries     int
+		MapData         string
+		From            string
+		To              string
+		SelectedCountry string
+		SelectedCity    string
+		SelectedService string
+		SelectedVersion string
 	}{
 		Countries:       string(countries),
 		FilterCountries: unfilteredSummary.Countries,
