@@ -1,72 +1,134 @@
+* {
+  font-family: "Rubik", sans-serif;
+  font-size: 18px;
+}
+
 html,
 body {
-    height: 100%;
-    width: 100%;
+  height: 100%;
+  width: 100%;
 }
 body {
-    margin: 0;
-    display: flex;
+  margin: 0;
 }
 .sidebar {
-    width: 25%;
-    height: 100%;
-    padding: 10px;
+  width: 25%;
+  height: 100%;
+  padding: 10px;
 }
 .container {
-    height: 100%;
-    width: 75%;
+  height: 100%;
+  width: 75%;
 }
 .main-content {
-    flex-grow: 1;
-    height: 100%;
-    width: 100%;
+  flex-grow: 1;
+  height: 100%;
+  width: 100%;
 }
 .btn {
-    margin-left: 20px;
-    margin-right: 20px;
-    padding: 10px 20px;
-    text-align: center;
-    line-height: 10px; 
-    margin-top: 10px; 
+  margin-left: 20px;
+  margin-right: 20px;
+  padding: 10px 20px;
+  text-align: center;
+  line-height: 10px;
+  margin-top: 10px;
 }
-.list-group-item{
-    display: flex;
-    justify-content: space-between;
-    cursor: pointer;
+.list-group-item {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
 }
 .badge {
-    max-height: 20px;
+  max-height: 20px;
 }
 #map {
-    height: 100%;
-    width: 100%;
+  height: 100%;
+  width: 100%;
 }
 #filter-form {
-    display: fixed;
-    gap: 20px;
+  display: fixed;
+  gap: 20px;
 }
-#myButton {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
+.my-button {
+  background-color: #073763;
+  color: white;
+}
+
+.my-button {
+  background-color: #073763;
+  color: white;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.my-button:hover {
+  background-color: #073763; /* slightly lighter blue */
+  opacity: 0.8;
+  color: white;
+  transform: translateY(-2px); /* subtle lift effect */
+}
+
+.filter-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+.canvas-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
 }
 #from-date,
 #to-date {
-    width: 150px;
-    height: 30px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 4px;
+  width: 150px;
+  height: 30px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px;
 }
 .scrollable-list {
-    height: 400px;
-    overflow-y: auto;
+  height: 400px;
+  overflow-y: auto;
 }
 .error-message {
-    color: red;
-    display: block;
-    padding-bottom: 4px;
-    display: flex;
-    justify-content: center;
+  color: red;
+  display: block;
+  padding-bottom: 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.offcanvas {
+  border-right: 1px solid #eee;
+  padding: 10px;
+  background: #ffffff;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+}
+
+.offcanvas-header {
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 12px;
+}
+
+.offcanvas-body {
+  padding-top: 20px;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+#summary-top {
+  background: white;
+  border-bottom: 2px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  text-align: center;
+  display: none;
+  font-size: 20px;
 }

@@ -1,4 +1,4 @@
-FROM golang:1.21.0-alpine AS builder
+FROM golang:1.25.3-alpine AS builder
 ARG SVC
 ARG GOARCH
 ARG GOARM
@@ -8,10 +8,11 @@ ARG TIME
 
 WORKDIR /go/src/github.com/absmach/callhome
 COPY . .
+RUN go mod tidy
 RUN apk update \
     && apk add make\
     && make $SVC \
-    && mv build/callhome-$SVC /exe
+    && mv build/$SVC /exe
 
 FROM scratch
 # Certificates are needed so that mailing util can work.

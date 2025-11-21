@@ -40,10 +40,13 @@ $(PROGRAM): $(SOURCES)
 	-X 'github.com/absmach/callhome.BuildTime=$(TIME)' \
 	-X 'github.com/absmach/callhome.Version=$(VERSION)' \
 	-X 'github.com/absmach/callhome.Commit=$(COMMIT)'" \
-	-o ./build/$(PROGRAM)-$(PROGRAM) cmd/main.go
+	-o ./build/$(PROGRAM) cmd/main.go
 
 clean:
-	rm -rf $(PROGRAM)
+	rm -rf build
+
+cleandocker:
+	docker compose -f ./docker/docker-compose.yml down --rmi all -v --remove-orphans
 
 docker-image:
 	$(call make_docker)
