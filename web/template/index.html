@@ -59,7 +59,7 @@
       aria-labelledby="summary"
     >
       <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="summary">Deployment Summary</h5>
+        <h5 class="offcanvas-title" id="summary">Magistrala Deployments</h5>
         <button
           type="button"
           class="btn-close text-reset"
@@ -68,17 +68,17 @@
         ></button>
       </div>
       <div class="offcanvas-body">
-        <p id="summary-text" class="mt-2">
+        <div id="summary-text" class="mt-2">
           Magistrala currently has
           <span class="fw-semibold">{{.NoDeployments}}</span> deployments in
           <span class="fw-semibold">{{.NoCountries}}</span>
           countries.
-        </p>
+        </div>
 
-        <p>List of countries:</p>
         <div class="scrollable-list">
+          <p>List of countries:</p>
           <table class="table table-hover table-sm" id="country-table">
-            <thead class="table-light">
+            <thead>
               <tr>
                 <th>Country</th>
                 <th>Deployments</th>
@@ -124,21 +124,26 @@
           <form id="filter-form" onsubmit="applyFilter(event)">
             <div class="modal-body">
               <div id="error-message" class="error-message"></div>
-              <label for="from-date">From:</label>
-              <input
-                type="datetime-local"
-                id="from-date"
-                name="from-date"
-                value="{{.From}}"
-              />
-              <label for="to-date">To:</label>
-              <input
-                type="datetime-local"
-                id="to-date"
-                name="to-date"
-                value="{{.To}}"
-              />
-              <br />
+              <div class="mb-3">
+                <label for="from-date" class="form-label">From:</label>
+                <input
+                  type="datetime-local"
+                  id="from-date"
+                  name="from-date"
+                  class="form-control"
+                  value="{{.From}}"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="to-date" class="form-label">To:</label>
+                <input
+                  type="datetime-local"
+                  id="to-date"
+                  name="to-date"
+                  class="form-control"
+                  value="{{.To}}"
+                />
+              </div>
               <label for="country-filter" class="form-label">Country</label>
               <select id="country-filter" class="form-select">
                 <option value="">Select a country</option>
@@ -246,6 +251,24 @@
         window.location.href = window.location.pathname;
       }
 
+      // Add date validation listeners
+      document.addEventListener('DOMContentLoaded', function() {
+        const fromDate = document.getElementById("from-date");
+        const toDate = document.getElementById("to-date");
+
+        fromDate.addEventListener("change", function() {
+          if (this.value) {
+            toDate.min = this.value;
+          }
+        });
+
+        toDate.addEventListener("change", function() {
+          if (this.value) {
+            fromDate.max = this.value;
+          }
+        });
+      });
+
       function applyFilter(event) {
         event.preventDefault();
         const errorMessage = document.getElementById("error-message");
@@ -259,7 +282,7 @@
         var fromDate = fromDateInput ? new Date(fromDateInput) : null;
         var toDate = toDateInput ? new Date(toDateInput) : null;
         if (fromDate && toDate && fromDate > toDate) {
-          errorMessage.textContent = "Date range is not valid!";
+          errorMessage.textContent = "Date range is not valid! 'To' date must be after 'From' date.";
           return;
         } else {
           errorMessage.textContent = "";
