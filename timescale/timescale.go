@@ -31,10 +31,11 @@ func New(db *sqlx.DB) callhome.TelemetryRepo {
 func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters callhome.TelemetryFilters) (callhome.TelemetryPage, error) {
 	filterQuery, params := generateQuery(filters)
 
-	// Optimized single query using window functions instead of CTE
+	// Optimized query using window functions to get latest telemetry and services in one scan
+	// First get the limited set of IPs we need, then aggregate services only for those IPs
 	q := fmt.Sprintf(`
-	WITH latest_telemetry AS (
-		SELECT DISTINCT ON (ip_address)
+	WITH ranked_telemetry AS (
+		SELECT
 			ip_address,
 			time,
 			service_time,
@@ -43,34 +44,48 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 			mg_version,
 			country,
 			city,
-			service
+			service,
+			ROW_NUMBER() OVER (PARTITION BY ip_address ORDER BY time DESC) as rn
 		FROM telemetry
 		%s
-		ORDER BY ip_address, time DESC
 	),
-	aggregated_services AS (
+	latest_per_ip AS (
 		SELECT
 			ip_address,
-			ARRAY_AGG(DISTINCT service) AS services
-		FROM telemetry
-		%s
-		GROUP BY ip_address
+			time,
+			service_time,
+			longitude,
+			latitude,
+			mg_version,
+			country,
+			city
+		FROM ranked_telemetry
+		WHERE rn = 1
+		ORDER BY time DESC
+		LIMIT :limit OFFSET :offset
+	),
+	services_per_ip AS (
+		SELECT
+			t.ip_address,
+			ARRAY_AGG(DISTINCT t.service) as services
+		FROM latest_per_ip lpi
+		INNER JOIN telemetry t ON t.ip_address = lpi.ip_address
+		GROUP BY t.ip_address
 	)
 	SELECT
-		lt.ip_address,
-		agg.services,
-		lt.time,
-		lt.service_time,
-		lt.longitude,
-		lt.latitude,
-		lt.mg_version,
-		lt.country,
-		lt.city
-	FROM latest_telemetry lt
-	INNER JOIN aggregated_services agg ON lt.ip_address = agg.ip_address
-	ORDER BY lt.time DESC
-	OFFSET :offset LIMIT :limit;
-	`, filterQuery, filterQuery)
+		lpi.ip_address,
+		lpi.time,
+		lpi.service_time,
+		lpi.longitude,
+		lpi.latitude,
+		lpi.mg_version,
+		lpi.country,
+		lpi.city,
+		s.services
+	FROM latest_per_ip lpi
+	LEFT JOIN services_per_ip s ON lpi.ip_address = s.ip_address
+	ORDER BY lpi.time DESC;
+	`, filterQuery)
 
 	params["limit"] = pm.Limit
 	params["offset"] = pm.Offset

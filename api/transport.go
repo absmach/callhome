@@ -146,6 +146,14 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 }
 
 func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
+	if len(r.URL.Query()) == 0 {
+		return listTelemetryReq{
+			offset: defOffset,
+			limit:  defLimit,
+			from:   time.Now().UTC().AddDate(0, 0, -30),
+			to:     time.Now().UTC(),
+		}, nil
+	}
 	o, err := ReadUintQuery(r, offsetKey, defOffset)
 	if err != nil {
 		return nil, err

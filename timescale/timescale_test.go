@@ -140,10 +140,10 @@ func TestRetrieveAll(t *testing.T) {
 
 		services := pq.Array([]string{mTel.Service})
 		rows := sqlmock.NewRows(
-			[]string{"ip_address", "services", "time", "service_time", "longitude", "latitude", "mg_version", "country", "city"},
-		).AddRow(mTel.IpAddress, services, mTel.LastSeen, mTel.ServiceTime, mTel.Longitude, mTel.Latitude, mTel.Version, mTel.Country, mTel.City)
+			[]string{"ip_address", "time", "service_time", "longitude", "latitude", "mg_version", "country", "city", "services"},
+		).AddRow(mTel.IpAddress, mTel.LastSeen, mTel.ServiceTime, mTel.Longitude, mTel.Latitude, mTel.Version, mTel.Country, mTel.City, services)
 
-		mock.ExpectQuery("WITH latest_telemetry(.*)").WillReturnRows(rows)
+		mock.ExpectQuery("WITH ranked_telemetry(.*)").WillReturnRows(rows)
 
 		tp, err := repo.RetrieveAll(ctx, callhome.PageMetadata{Limit: 10, Offset: 0}, callhome.TelemetryFilters{})
 		assert.Nil(t, err)
