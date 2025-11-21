@@ -32,7 +32,13 @@ L.control
   .addTo(map);
 
 var allMarkers = [];
-var markerClusterGroup = L.markerClusterGroup();
+var markerClusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 40,        
+  disableClusteringAtZoom: 10, 
+  spiderfyOnMaxZoom: true,     
+  showCoverageOnHover: false,  
+  zoomToBoundsOnClick: true    
+});
 
 // Add all event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
