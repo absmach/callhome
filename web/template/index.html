@@ -59,7 +59,7 @@
       aria-labelledby="summary"
     >
       <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="summary">Deployment Summary</h5>
+        <h5 class="offcanvas-title" id="summary">Magistrala Deployments</h5>
         <button
           type="button"
           class="btn-close text-reset"
@@ -68,17 +68,17 @@
         ></button>
       </div>
       <div class="offcanvas-body">
-        <p id="summary-text" class="mt-2">
+        <div id="summary-text" class="mt-2">
           Magistrala currently has
           <span class="fw-semibold">{{.NoDeployments}}</span> deployments in
           <span class="fw-semibold">{{.NoCountries}}</span>
           countries.
-        </p>
+        </div>
 
-        <p>List of countries:</p>
         <div class="scrollable-list">
+          <p>List of countries:</p>
           <table class="table table-hover table-sm" id="country-table">
-            <thead class="table-light">
+            <thead>
               <tr>
                 <th>Country</th>
                 <th>Deployments</th>
@@ -91,6 +91,13 @@
     </div>
 
     <!-- Off canvas end -->
+
+    <!-- Spinner Overlay -->
+    <div id="spinner-overlay" class="spinner-overlay" style="display: none;">
+      <div class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
 
     <!-- Modal -->
     <div
@@ -117,26 +124,31 @@
           <form id="filter-form" onsubmit="applyFilter(event)">
             <div class="modal-body">
               <div id="error-message" class="error-message"></div>
-              <label for="from-date">From:</label>
-              <input
-                type="datetime-local"
-                id="from-date"
-                name="from-date"
-                value="{{.From}}"
-              />
-              <label for="to-date">To:</label>
-              <input
-                type="datetime-local"
-                id="to-date"
-                name="to-date"
-                value="{{.To}}"
-              />
-              <br />
+              <div class="mb-3">
+                <label for="from-date" class="form-label">From:</label>
+                <input
+                  type="datetime-local"
+                  id="from-date"
+                  name="from-date"
+                  class="form-control"
+                  value="{{.From}}"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="to-date" class="form-label">To:</label>
+                <input
+                  type="datetime-local"
+                  id="to-date"
+                  name="to-date"
+                  class="form-control"
+                  value="{{.To}}"
+                />
+              </div>
               <label for="country-filter" class="form-label">Country</label>
               <select id="country-filter" class="form-select">
                 <option value="">Select a country</option>
                 {{range $i, $country := .FilterCountries}}
-                <option value="{{$country.Country}}">
+                <option value="{{$country.Country}}" {{if eq $country.Country $.SelectedCountry}}selected{{end}}>
                   {{$country.Country}}
                 </option>
                 {{end}}
@@ -145,21 +157,21 @@
               <select id="city-filter" class="form-select">
                 <option value="">Select a city</option>
                 {{range $i, $city := .FilterCities}}
-                <option value="{{$city}}">{{$city}}</option>
+                <option value="{{$city}}" {{if eq $city $.SelectedCity}}selected{{end}}>{{$city}}</option>
                 {{end}}
               </select>
               <label for="version-filter" class="form-label">Version</label>
               <select id="version-filter" class="form-select">
                 <option value="">Select a Version</option>
                 {{range $i, $version := .FilterVersions}}
-                <option value="{{$version}}">{{$version}}</option>
+                <option value="{{$version}}" {{if eq $version $.SelectedVersion}}selected{{end}}>{{$version}}</option>
                 {{end}}
               </select>
               <label for="service-filter" class="form-label">Service</label>
               <select id="service-filter" class="form-select">
                 <option value="">Select a Service</option>
                 {{range $i, $service := .FilterServices}}
-                <option value="{{$service}}">{{$service}}</option>
+                <option value="{{$service}}" {{if eq $service $.SelectedService}}selected{{end}}>{{$service}}</option>
                 {{end}}
               </select>
             </div>
@@ -171,6 +183,7 @@
               >
                 Close
               </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">Reset</button>
               <button type="submit" class="btn my-button">Apply</button>
             </div>
           </form>
@@ -230,6 +243,32 @@
         })
         .addTo(map);
 
+      var allMarkers = [];
+      var markerClusterGroup = L.markerClusterGroup();
+
+      function resetFilters() {
+        // Reload the page without any query parameters
+        window.location.href = window.location.pathname;
+      }
+
+      // Add date validation listeners
+      document.addEventListener('DOMContentLoaded', function() {
+        const fromDate = document.getElementById("from-date");
+        const toDate = document.getElementById("to-date");
+
+        fromDate.addEventListener("change", function() {
+          if (this.value) {
+            toDate.min = this.value;
+          }
+        });
+
+        toDate.addEventListener("change", function() {
+          if (this.value) {
+            fromDate.max = this.value;
+          }
+        });
+      });
+
       function applyFilter(event) {
         event.preventDefault();
         const errorMessage = document.getElementById("error-message");
@@ -243,52 +282,111 @@
         var fromDate = fromDateInput ? new Date(fromDateInput) : null;
         var toDate = toDateInput ? new Date(toDateInput) : null;
         if (fromDate && toDate && fromDate > toDate) {
-          errorMessage.textContent = "Date range is not valid!";
+          errorMessage.textContent = "Date range is not valid! 'To' date must be after 'From' date.";
           return;
         } else {
-          errorMessage.textContent = ""; // Clear error message if the dates are valid
+          errorMessage.textContent = "";
         }
 
-        var fromDateString = fromDate ? fromDate.toISOString() : "";
-        var toDateString = toDate ? toDate.toISOString() : "";
+        // Show spinner
+        document.getElementById("spinner-overlay").style.display = "flex";
 
-        var fromDate = fromDateInput
-          ? new Date(fromDateInput).toISOString()
-          : "";
-        var toDate = toDateInput ? new Date(toDateInput).toISOString() : "";
+        // Build query parameters for server-side filtering
+        const params = new URLSearchParams();
+        if (fromDate) {
+          params.append('from', fromDate.toISOString());
+        }
+        if (toDate) {
+          params.append('to', toDate.toISOString());
+        }
+        if (selectedCountry) {
+          params.append('country', selectedCountry);
+        }
+        if (selectedCity) {
+          params.append('city', selectedCity);
+        }
+        if (selectedService) {
+          params.append('service', selectedService);
+        }
+        if (selectedVersion) {
+          params.append('version', selectedVersion);
+        }
 
-        var url = `/?from=${encodeURIComponent(
-          fromDate
-        )}&to=${encodeURIComponent(toDate)}&country=${encodeURIComponent(
-          selectedCountry
-        )}&city=${encodeURIComponent(
-          selectedCity
-        )}&service=${encodeURIComponent(
-          selectedService
-        )}&version=${encodeURIComponent(selectedVersion)}`;
-        window.location.href = url;
+        // Reload page with query parameters
+        window.location.href = window.location.pathname + '?' + params.toString();
       }
 
-      // Populate the sidebar with the country list and retrieve coordinates
-      var tableBody = document.querySelector("#country-table tbody");
+      function filterMarkers(filters) {
+        markerClusterGroup.clearLayers();
 
-      countries.forEach(function (country) {
-        var row = document.createElement("tr");
-        row.style.cursor = "pointer";
+        var filteredMarkers = allMarkers.filter(function(item) {
+          var passes = true;
 
-        row.innerHTML = `
-    <td>${country.country}</td>
-    <td><span class="badge bg-secondary">${country.number_of_deployments}</span></td>
-  `;
+          if (filters.fromDate && new Date(item.data.last_seen) < filters.fromDate) {
+            passes = false;
+          }
+          if (filters.toDate && new Date(item.data.last_seen) > filters.toDate) {
+            passes = false;
+          }
+          if (filters.country && item.data.country !== filters.country) {
+            passes = false;
+          }
+          if (filters.city && item.data.city !== filters.city) {
+            passes = false;
+          }
+          if (filters.version && item.data.magistrala_version !== filters.version) {
+            passes = false;
+          }
+          if (filters.service && !item.data.services.includes(filters.service)) {
+            passes = false;
+          }
 
-        row.addEventListener("click", function () {
-          getCountryCoordinates(country.country, function (lat, lng) {
-            map.setView([lat, lng], 6);
-          });
+          return passes;
         });
 
-        tableBody.appendChild(row);
-      });
+        filteredMarkers.forEach(function(item) {
+          markerClusterGroup.addLayer(item.marker);
+        });
+
+        updateCountryTable(filteredMarkers);
+      }
+
+      function updateCountryTable(markers) {
+        var countryCounts = {};
+        markers.forEach(function(item) {
+          var country = item.data.country;
+          countryCounts[country] = (countryCounts[country] || 0) + 1;
+        });
+
+        var tableBody = document.querySelector("#country-table tbody");
+        tableBody.innerHTML = "";
+
+        Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).forEach(function([country, count]) {
+          var row = document.createElement("tr");
+          row.style.cursor = "pointer";
+          row.innerHTML = `
+            <td>${country}</td>
+            <td><span class="badge bg-secondary">${count}</span></td>
+          `;
+          row.addEventListener("click", function () {
+            getCountryCoordinates(country, function (lat, lng) {
+              map.setView([lat, lng], 6);
+            });
+          });
+          tableBody.appendChild(row);
+        });
+
+        var summaryTextElement = document.getElementById("summary-text");
+        var totalDeployments = markers.length;
+        var totalCountries = Object.keys(countryCounts).length;
+        summaryTextElement.innerHTML = `Magistrala currently has <span class="fw-semibold">${totalDeployments}</span> deployments in <span class="fw-semibold">${totalCountries}</span> countries.`;
+
+        var summaryTop = document.getElementById("summary-top");
+        if (summaryTop.style.display === "block") {
+          summaryTop.innerHTML = summaryTextElement.innerHTML;
+        }
+      }
+
       // Function to retrieve coordinates for a given country using Nominatim API
       function getCountryCoordinates(country, callback) {
         var url =
@@ -316,38 +414,34 @@
       function logJSONData() {
         var mapData = `{{.MapData}}`;
         const obj = JSON.parse(mapData);
-        const groupedPoints = {};
+
         obj.Telemetry.forEach((tel) => {
-          const country = tel.country;
-          if (!groupedPoints[country]) {
-            groupedPoints[country] = [];
-          }
-          groupedPoints[country].push(tel);
-        });
-        Object.entries(groupedPoints).forEach(([country, points]) => {
-          const countryMarkers = L.markerClusterGroup();
-          points.forEach((tel) => {
-            const last_seen = new Date(tel.last_seen);
-            const marker = L.circle([tel.latitude, tel.longitude], {
-              radius: 1000,
-            }).bindPopup(
-              `<h3>Deployment details</h3>
-                            <p style="font-size: 12px;">version:\t${
-                              tel.magistrala_version
-                            }</p>
-                            <p style="font-size: 12px;">last seen:\t${last_seen}</p>
-                            <p style="font-size: 12px;">country:\t${
-                              tel.country
-                            }</p>
-                            <p style="font-size: 12px;">city:\t${tel.city}</p>
-                            <p style="font-size: 12px;">Services:\t${tel.services.join(
-                              ", "
-                            )}</p>`
-            );
-            countryMarkers.addLayer(marker);
+          const last_seen = new Date(tel.last_seen);
+          const marker = L.circle([tel.latitude, tel.longitude], {
+            radius: 1000,
+          }).bindPopup(
+            `<h3>Deployment details</h3>
+                          <p style="font-size: 12px;">version:\t${
+                            tel.magistrala_version
+                          }</p>
+                          <p style="font-size: 12px;">last seen:\t${last_seen}</p>
+                          <p style="font-size: 12px;">country:\t${
+                            tel.country
+                          }</p>
+                          <p style="font-size: 12px;">city:\t${tel.city}</p>
+                          <p style="font-size: 12px;">Services:\t${tel.services.join(
+                            ", "
+                          )}</p>`
+          );
+
+          allMarkers.push({
+            marker: marker,
+            data: tel
           });
-          map.addLayer(countryMarkers);
         });
+
+        map.addLayer(markerClusterGroup);
+        filterMarkers({});
       }
       logJSONData();
     </script>

@@ -45,6 +45,27 @@ func Migration() migrate.MemoryMigrationSource {
 				},
 				Down: []string{`ALTER TABLE telemetry DROP COLUMN mac_address;`},
 			},
+			{
+				Id: "telemetry_4",
+				Up: []string{
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_ip_address ON telemetry (ip_address);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_country ON telemetry (country);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_city ON telemetry (city);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_service ON telemetry (service);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_mg_version ON telemetry (mg_version);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_time ON telemetry (time DESC);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_country_time ON telemetry (country, time DESC);`,
+				},
+				Down: []string{
+					`DROP INDEX IF EXISTS idx_telemetry_ip_address;`,
+					`DROP INDEX IF EXISTS idx_telemetry_country;`,
+					`DROP INDEX IF EXISTS idx_telemetry_city;`,
+					`DROP INDEX IF EXISTS idx_telemetry_service;`,
+					`DROP INDEX IF EXISTS idx_telemetry_mg_version;`,
+					`DROP INDEX IF EXISTS idx_telemetry_time;`,
+					`DROP INDEX IF EXISTS idx_telemetry_country_time;`,
+				},
+			},
 		},
 	}
 }
