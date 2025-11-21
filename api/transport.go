@@ -172,20 +172,13 @@ func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Default to 30 days ago if no from date provided
-		from = time.Now().AddDate(0, 0, -30)
 	}
 	if toString != "" {
 		to, err = time.Parse(time.RFC3339, toString)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Default to now if no to date provided
-		to = time.Now()
 	}
-
 	co, err := ReadStringQuery(r, countryKey, "")
 	if err != nil {
 		return nil, err
