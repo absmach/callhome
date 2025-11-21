@@ -61,10 +61,10 @@ body {
 }
 
 .my-button:hover {
-  background-color: #073763; /* slightly lighter blue */
+  background-color: #073763;
   opacity: 0.8;
   color: white;
-  transform: translateY(-2px); /* subtle lift effect */
+  transform: translateY(-2px);
 }
 
 .filter-button {
