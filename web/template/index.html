@@ -1,195 +1,360 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <link rel="icon" href="https://docs.magistrala.io/img/logo.png">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.css" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.Default.css" />
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
-        <link rel="stylesheet" href="/style.css"/>
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/leaflet.markercluster.js"></script>
-        <script src="https://d3js.org/d3.v3.min.js" type="text/javascript"></script>
-        <title>Magistrala Deployments</title>
-    </head>
-    <body>
-        <div class="sidebar">
-            <h2>Magistrala Deployment Summary</h2>
-            <p>Magistrala currently has {{.NoDeployments}} deployments in {{.NoCountries}} countries.</p>
-            <p>List of countries:</p>
-            <div class="scrollable-list">
-                <ul class="list-group" id="country-list">
-                    
-                </ul>
-            </div>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="https://docs.magistrala.io/img/logo.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.Default.css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/leaflet.markercluster.js"></script>
+    <script src="https://d3js.org/d3.v3.min.js" type="text/javascript"></script>
+    <title>Magistrala Deployments</title>
+  </head>
+  <body>
+    <!-- Off canvas start -->
+    <button
+      class="btn canvas-button my-button"
+      type="button"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#summary"
+      aria-controls="summary"
+      id="summary-btn"
+    >
+      Summary
+    </button>
+    <div
+      class="offcanvas show offcanvas-start"
+      tabindex="-1"
+      id="summary"
+      data-bs-scroll="true"
+      data-bs-backdrop="false"
+      tabindex="-1"
+      aria-labelledby="summary"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="summary">Deployment Summary</h5>
+        <button
+          type="button"
+          class="btn-close text-reset"
+          data-bs-dismiss="offcanvas"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="offcanvas-body">
+        <p id="summary-text" class="mt-2">
+          Magistrala currently has
+          <span class="fw-semibold">{{.NoDeployments}}</span> deployments in
+          <span class="fw-semibold">{{.NoCountries}}</span>
+          countries.
+        </p>
+
+        <p>List of countries:</p>
+        <div class="scrollable-list">
+          <table class="table table-hover table-sm" id="country-table">
+            <thead class="table-light">
+              <tr>
+                <th>Country</th>
+                <th>Deployments</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
-         <!-- Modal -->
-        <div class="modal fade" id="applyFilters" tabindex="-1" aria-labelledby="applyFiltersLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="applyFiltersLabel">Apply Filters</h1>
-                        </div>
-                        <div class="modal-body">
-                            <div id="error-message" class="error-message"></div>
-	                        <div class="mb-3">
-                                <form id="filter-form" onsubmit="applyFilter(event)">
-                                    <label for="from-date">From:</label>
-                                    <input type="datetime-local" id="from-date" name="from-date" value="{{.From}}">
-                                    <label for="to-date">To:</label>
-                                    <input type="datetime-local" id="to-date" name="to-date" value="{{.To}}">
-                                    <br>
-                                    <label for="country-filter" class="form-label">Country</label>
-                                    <select id="country-filter" class="form-select">
-                                        <option value="">Select a country</option>
-                                        {{range $i, $country := .FilterCountries}}
-                                            <option value="{{$country.Country}}">{{$country.Country}}</option>
-                                        {{end}}
-                                    </select>
-                                    <label for="city-filter" class="form-label">City</label>
-                                    <select id="city-filter" class="form-select">
-                                        <option value="">Select a city</option>
-                                        {{range $i, $city := .FilterCities}}
-                                            <option value="{{$city}}">{{$city}}</option>
-                                        {{end}}
-                                    </select>
-                                    <label for="version-filter" class="form-label">Version</label>
-                                    <select id="version-filter" class="form-select">
-                                        <option value="">Select a Version</option>
-                                        {{range $i, $version := .FilterVersions}}
-                                            <option value="{{$version}}">{{$version}}</option>
-                                        {{end}}
-                                    </select>
-                                    <label for="service-filter" class="form-label">Service</label>
-                                    <select id="service-filter" class="form-select">
-                                        <option value="">Select a Service</option>
-                                        {{range $i, $service := .FilterServices}}
-                                            <option value="{{$service}}">{{$service}}</option>
-                                        {{end}}
-                                    </select>
-                                    <button type="submit" class="btn btn-primary">Apply</button>
-                                </form>
-                            </div>                         
-                        </div>
-                    </div>
-                    </div>
-        </div>
-            <div class="main-content">
-                <div id="map">
-                    <!-- Button trigger for modal -->
-                    <button type="button" class="btn btn-light" id="myButton" data-bs-toggle="modal" data-bs-target="#applyFilters">
-                        <i class="fas fa-filter"></i>
-                    </button>
-                </div>
+      </div>
+    </div>
+
+    <!-- Off canvas end -->
+
+    <!-- Modal -->
+    <div
+      class="modal fade"
+      id="applyFilters"
+      tabindex="-1"
+      aria-labelledby="applyFiltersLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="applyFiltersLabel">
+              Apply Filters
+            </h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+
+          <form id="filter-form" onsubmit="applyFilter(event)">
+            <div class="modal-body">
+              <div id="error-message" class="error-message"></div>
+              <label for="from-date">From:</label>
+              <input
+                type="datetime-local"
+                id="from-date"
+                name="from-date"
+                value="{{.From}}"
+              />
+              <label for="to-date">To:</label>
+              <input
+                type="datetime-local"
+                id="to-date"
+                name="to-date"
+                value="{{.To}}"
+              />
+              <br />
+              <label for="country-filter" class="form-label">Country</label>
+              <select id="country-filter" class="form-select">
+                <option value="">Select a country</option>
+                {{range $i, $country := .FilterCountries}}
+                <option value="{{$country.Country}}">
+                  {{$country.Country}}
+                </option>
+                {{end}}
+              </select>
+              <label for="city-filter" class="form-label">City</label>
+              <select id="city-filter" class="form-select">
+                <option value="">Select a city</option>
+                {{range $i, $city := .FilterCities}}
+                <option value="{{$city}}">{{$city}}</option>
+                {{end}}
+              </select>
+              <label for="version-filter" class="form-label">Version</label>
+              <select id="version-filter" class="form-select">
+                <option value="">Select a Version</option>
+                {{range $i, $version := .FilterVersions}}
+                <option value="{{$version}}">{{$version}}</option>
+                {{end}}
+              </select>
+              <label for="service-filter" class="form-label">Service</label>
+              <select id="service-filter" class="form-select">
+                <option value="">Select a Service</option>
+                {{range $i, $service := .FilterServices}}
+                <option value="{{$service}}">{{$service}}</option>
+                {{end}}
+              </select>
             </div>
-        <script type="text/javascript">
-            //create map object and set default positions and zoom level
-            var map = L.map('map').setView([20, 0], 2);
-            L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
+              <button type="submit" class="btn my-button">Apply</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="main-content">
+      <div
+        id="summary-top"
+        class="rounded fw-semibold"
+      >
+        <!-- Filled dynamically when offcanvas=false -->
+      </div>
 
-            function applyFilter(event) {
-                event.preventDefault();
-                const errorMessage = document.getElementById("error-message");
-                var fromDateInput = document.getElementById('from-date').value;
-                var toDateInput = document.getElementById('to-date').value;
-                var selectedCountry = document.getElementById('country-filter').value;
-                var selectedCity = document.getElementById('city-filter').value;
-                var selectedService = document.getElementById('service-filter').value;
-                var selectedVersion = document.getElementById('version-filter').value;
+      <div id="map">
+        <!-- Button trigger for modal -->
+        <button
+          type="button"
+          class="btn filter-button my-button"
+          data-bs-toggle="modal"
+          data-bs-target="#applyFilters"
+          id="filter-btn"
+        >
+          <i class="fas fa-filter"></i>
+        </button>
+      </div>
+    </div>
+    <script type="text/javascript">
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("offcanvas") === "false") {
+        document.getElementById("summary-btn").style.display = "none";
+        document.getElementById("filter-btn").style.display = "none";
 
-                var fromDate = fromDateInput ? new Date(fromDateInput) : null;
-                var toDate = toDateInput ? new Date(toDateInput) : null;               
-                if (fromDate && toDate && fromDate > toDate) {
-                    errorMessage.textContent = 'Date range is not valid!';
-                    return;
-                } else {
-                    errorMessage.textContent = ''; // Clear error message if the dates are valid
-                }
+        const summaryText = document.getElementById("summary-text").innerHTML;
+        const summaryTop = document.getElementById("summary-top");
+        const summary = document.getElementById("summary");
+        summary.classList.remove("show");
+        // Show summary at top of map instead
+        summaryTop.innerHTML = summaryText;
+        summaryTop.style.display = "block";
+        summaryTop.style.padding = "10px";
+      }
 
-                var fromDateString = fromDate ? fromDate.toISOString() : '';
-                var toDateString = toDate ? toDate.toISOString() : '';
+      var map = L.map("map", {
+        zoomControl: false,
+        zoomSnap: 0.01,
+      }).setView([15, 0], 3);
 
-                var fromDate = fromDateInput ? new Date(fromDateInput).toISOString() : '';
-                var toDate = toDateInput ? new Date(toDateInput).toISOString() : '';
+      L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
 
-                var url = `/?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}&country=${encodeURIComponent(selectedCountry)}&city=${encodeURIComponent(selectedCity)}&service=${encodeURIComponent(selectedService)}&version=${encodeURIComponent(selectedVersion)}`;
-                window.location.href = url;
+      L.control
+        .zoom({
+          position: "bottomright",
+        })
+        .addTo(map);
+
+      function applyFilter(event) {
+        event.preventDefault();
+        const errorMessage = document.getElementById("error-message");
+        var fromDateInput = document.getElementById("from-date").value;
+        var toDateInput = document.getElementById("to-date").value;
+        var selectedCountry = document.getElementById("country-filter").value;
+        var selectedCity = document.getElementById("city-filter").value;
+        var selectedService = document.getElementById("service-filter").value;
+        var selectedVersion = document.getElementById("version-filter").value;
+
+        var fromDate = fromDateInput ? new Date(fromDateInput) : null;
+        var toDate = toDateInput ? new Date(toDateInput) : null;
+        if (fromDate && toDate && fromDate > toDate) {
+          errorMessage.textContent = "Date range is not valid!";
+          return;
+        } else {
+          errorMessage.textContent = ""; // Clear error message if the dates are valid
+        }
+
+        var fromDateString = fromDate ? fromDate.toISOString() : "";
+        var toDateString = toDate ? toDate.toISOString() : "";
+
+        var fromDate = fromDateInput
+          ? new Date(fromDateInput).toISOString()
+          : "";
+        var toDate = toDateInput ? new Date(toDateInput).toISOString() : "";
+
+        var url = `/?from=${encodeURIComponent(
+          fromDate
+        )}&to=${encodeURIComponent(toDate)}&country=${encodeURIComponent(
+          selectedCountry
+        )}&city=${encodeURIComponent(
+          selectedCity
+        )}&service=${encodeURIComponent(
+          selectedService
+        )}&version=${encodeURIComponent(selectedVersion)}`;
+        window.location.href = url;
+      }
+
+      // Populate the sidebar with the country list and retrieve coordinates
+      var tableBody = document.querySelector("#country-table tbody");
+
+      countries.forEach(function (country) {
+        var row = document.createElement("tr");
+        row.style.cursor = "pointer";
+
+        row.innerHTML = `
+    <td>${country.country}</td>
+    <td><span class="badge bg-secondary">${country.number_of_deployments}</span></td>
+  `;
+
+        row.addEventListener("click", function () {
+          getCountryCoordinates(country.country, function (lat, lng) {
+            map.setView([lat, lng], 6);
+          });
+        });
+
+        tableBody.appendChild(row);
+      });
+      // Function to retrieve coordinates for a given country using Nominatim API
+      function getCountryCoordinates(country, callback) {
+        var url =
+          "https://nominatim.openstreetmap.org/search?format=json&q=" +
+          encodeURIComponent(country);
+
+        fetch(url)
+          .then(function (response) {
+            return response.json();
+          })
+          .then(function (data) {
+            if (data.length > 0) {
+              var lat = parseFloat(data[0].lat);
+              var lng = parseFloat(data[0].lon);
+              callback(lat, lng);
+            } else {
+              console.log("Coordinates not found for country: " + country);
             }
+          })
+          .catch(function (error) {
+            console.log("Error retrieving coordinates:", error);
+          });
+      }
 
-            // List of countries
-            var countries = JSON.parse('{{.Countries}}');
-
-            // Populate the sidebar with the country list and retrieve coordinates
-            var countryList = document.getElementById('country-list');
-            countries.forEach(function (country) {
-              var listItem = document.createElement('li');
-              listItem.className = 'list-group-item';
-              listItem.textContent = country.country;
-              var listItemContent = document.createElement('span');
-              listItemContent.className = 'badge bg-secondary';
-              listItemContent.textContent = country.number_of_deployments;
-              listItem.appendChild(listItemContent);
-              listItem.addEventListener('click', function () {
-                getCountryCoordinates(country.country, function (lat, lng) {
-                  map.setView([lat, lng], 6); // Zoom in to the clicked country
-                });
-              });
-              countryList.appendChild(listItem);
-            });
-            // Function to retrieve coordinates for a given country using Nominatim API
-            function getCountryCoordinates(country, callback) {
-              var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(country);
-
-              fetch(url)
-              .then(function (response) {
-                return response.json();
-              })
-              .then(function (data) {
-                if (data.length > 0) {
-                  var lat = parseFloat(data[0].lat);
-                  var lng = parseFloat(data[0].lon);
-                  callback(lat, lng);
-                } else {
-                  console.log('Coordinates not found for country: ' + country);
-                }
-              })
-              .catch(function (error) {
-                console.log('Error retrieving coordinates:', error);
-              });
-            }
-
-            function logJSONData() {
-                var mapData = `{{.MapData}}`;
-                const obj = JSON.parse(mapData);
-                const groupedPoints = {};
-                obj.Telemetry.forEach(tel => {
-                    const country = tel.country;
-                    if (!groupedPoints[country]) {
-                        groupedPoints[country] = [];
-                    }
-                    groupedPoints[country].push(tel);
-                });
-                Object.entries(groupedPoints).forEach(([country, points]) => {
-                    const countryMarkers = L.markerClusterGroup();
-                    points.forEach(tel => {
-                        const last_seen = new Date(tel.last_seen);
-                        const marker = L.circle([tel.latitude, tel.longitude], {radius: 1000}).bindPopup(
-                            `<h3>Deployment details</h3>
-                            <p style="font-size: 12px;">version:\t${tel.magistrala_version}</p>
+      function logJSONData() {
+        var mapData = `{{.MapData}}`;
+        const obj = JSON.parse(mapData);
+        const groupedPoints = {};
+        obj.Telemetry.forEach((tel) => {
+          const country = tel.country;
+          if (!groupedPoints[country]) {
+            groupedPoints[country] = [];
+          }
+          groupedPoints[country].push(tel);
+        });
+        Object.entries(groupedPoints).forEach(([country, points]) => {
+          const countryMarkers = L.markerClusterGroup();
+          points.forEach((tel) => {
+            const last_seen = new Date(tel.last_seen);
+            const marker = L.circle([tel.latitude, tel.longitude], {
+              radius: 1000,
+            }).bindPopup(
+              `<h3>Deployment details</h3>
+                            <p style="font-size: 12px;">version:\t${
+                              tel.magistrala_version
+                            }</p>
                             <p style="font-size: 12px;">last seen:\t${last_seen}</p>
-                            <p style="font-size: 12px;">country:\t${tel.country}</p>
+                            <p style="font-size: 12px;">country:\t${
+                              tel.country
+                            }</p>
                             <p style="font-size: 12px;">city:\t${tel.city}</p>
-                            <p style="font-size: 12px;">Services:\t${tel.services.join(', ')}</p>`
-                        );
-                        countryMarkers.addLayer(marker);
-                    });
-                    map.addLayer(countryMarkers);
-                });
-            }
-            logJSONData();
-        </script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm" crossorigin="anonymous"></script>
-    </body>
+                            <p style="font-size: 12px;">Services:\t${tel.services.join(
+                              ", "
+                            )}</p>`
+            );
+            countryMarkers.addLayer(marker);
+          });
+          map.addLayer(countryMarkers);
+        });
+      }
+      logJSONData();
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm"
+      crossorigin="anonymous"
+    ></script>
+  </body>
 </html>
