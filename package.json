@@ -1,0 +1,14 @@
+{
+  "name": "callhome",
+  "version": "1.0.0",
+  "description": "Callhome asset build tools",
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "cleancss -o web/static/style.min.css web/static/style.css",
+    "build:js": "terser web/static/app.js -o web/static/app.min.js -c -m"
+  },
+  "devDependencies": {
+    "clean-css-cli": "^5.6.3",
+    "terser": "^5.31.0"
+  }
+}
