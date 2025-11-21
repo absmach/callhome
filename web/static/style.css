@@ -52,11 +52,6 @@ body {
 .my-button {
   background-color: #073763;
   color: white;
-}
-
-.my-button {
-  background-color: #073763;
-  color: white;
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
 

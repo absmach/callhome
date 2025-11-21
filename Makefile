@@ -12,7 +12,7 @@ DOMAIN ?= deployments.absmach.eu
 
 all: $(PROGRAM)
 
-.PHONY: all clean $(PROGRAM) latest
+.PHONY: all clean $(PROGRAM) latest build-assets
 
 define make_docker
 	docker build \
@@ -60,6 +60,8 @@ run:
 test:
 	go test -v --race -count=1 -failfast -covermode=atomic -coverprofile cover.out ./...
 
+build-assets:
+	./docker/build-assets.sh
 
 latest: docker-image
 	docker push supermq/callhome:latest

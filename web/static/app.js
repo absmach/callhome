@@ -1,0 +1,238 @@
+// Handle offcanvas parameter
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get("offcanvas") === "false") {
+  document.getElementById("summary-btn").style.display = "none";
+  document.getElementById("filter-btn").style.display = "none";
+
+  const summaryText = document.getElementById("summary-text").innerHTML;
+  const summaryTop = document.getElementById("summary-top");
+  const summary = document.getElementById("summary");
+  summary.classList.remove("show");
+  // Show summary at top of map instead
+  summaryTop.innerHTML = summaryText;
+  summaryTop.style.display = "block";
+  summaryTop.style.padding = "10px";
+}
+
+// Initialize map
+var map = L.map("map", {
+  zoomControl: false,
+  zoomSnap: 0.01,
+}).setView([15, 0], 3);
+
+L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+  attribution:
+    '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+}).addTo(map);
+
+L.control
+  .zoom({
+    position: "bottomright",
+  })
+  .addTo(map);
+
+var allMarkers = [];
+var markerClusterGroup = L.markerClusterGroup();
+
+function resetFilters() {
+  // Reload the page without any query parameters
+  window.location.href = window.location.pathname;
+}
+
+// Add date validation listeners
+document.addEventListener('DOMContentLoaded', function() {
+  const fromDate = document.getElementById("from-date");
+  const toDate = document.getElementById("to-date");
+
+  fromDate.addEventListener("change", function() {
+    if (this.value) {
+      toDate.min = this.value;
+    }
+  });
+
+  toDate.addEventListener("change", function() {
+    if (this.value) {
+      fromDate.max = this.value;
+    }
+  });
+});
+
+function applyFilter(event) {
+  event.preventDefault();
+  const errorMessage = document.getElementById("error-message");
+  var fromDateInput = document.getElementById("from-date").value;
+  var toDateInput = document.getElementById("to-date").value;
+  var selectedCountry = document.getElementById("country-filter").value;
+  var selectedCity = document.getElementById("city-filter").value;
+  var selectedService = document.getElementById("service-filter").value;
+  var selectedVersion = document.getElementById("version-filter").value;
+
+  var fromDate = fromDateInput ? new Date(fromDateInput) : null;
+  var toDate = toDateInput ? new Date(toDateInput) : null;
+  if (fromDate && toDate && fromDate > toDate) {
+    errorMessage.textContent = "Date range is not valid! 'To' date must be after 'From' date.";
+    return;
+  } else {
+    errorMessage.textContent = "";
+  }
+
+  // Show spinner
+  document.getElementById("spinner-overlay").style.display = "flex";
+
+  // Build query parameters for server-side filtering
+  const params = new URLSearchParams();
+  if (fromDate) {
+    params.append('from', fromDate.toISOString());
+  }
+  if (toDate) {
+    params.append('to', toDate.toISOString());
+  }
+  if (selectedCountry) {
+    params.append('country', selectedCountry);
+  }
+  if (selectedCity) {
+    params.append('city', selectedCity);
+  }
+  if (selectedService) {
+    params.append('service', selectedService);
+  }
+  if (selectedVersion) {
+    params.append('version', selectedVersion);
+  }
+
+  // Reload page with query parameters
+  window.location.href = window.location.pathname + '?' + params.toString();
+}
+
+function filterMarkers(filters) {
+  markerClusterGroup.clearLayers();
+
+  var filteredMarkers = allMarkers.filter(function(item) {
+    var passes = true;
+
+    if (filters.fromDate && new Date(item.data.last_seen) < filters.fromDate) {
+      passes = false;
+    }
+    if (filters.toDate && new Date(item.data.last_seen) > filters.toDate) {
+      passes = false;
+    }
+    if (filters.country && item.data.country !== filters.country) {
+      passes = false;
+    }
+    if (filters.city && item.data.city !== filters.city) {
+      passes = false;
+    }
+    if (filters.version && item.data.magistrala_version !== filters.version) {
+      passes = false;
+    }
+    if (filters.service && !item.data.services.includes(filters.service)) {
+      passes = false;
+    }
+
+    return passes;
+  });
+
+  filteredMarkers.forEach(function(item) {
+    markerClusterGroup.addLayer(item.marker);
+  });
+
+  updateCountryTable(filteredMarkers);
+}
+
+function updateCountryTable(markers) {
+  var countryCounts = {};
+  markers.forEach(function(item) {
+    var country = item.data.country;
+    countryCounts[country] = (countryCounts[country] || 0) + 1;
+  });
+
+  var tableBody = document.querySelector("#country-table tbody");
+  tableBody.innerHTML = "";
+
+  Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).forEach(function([country, count]) {
+    var row = document.createElement("tr");
+    row.style.cursor = "pointer";
+    row.innerHTML = `
+      <td>${country}</td>
+      <td><span class="badge bg-secondary">${count}</span></td>
+    `;
+    row.addEventListener("click", function () {
+      getCountryCoordinates(country, function (lat, lng) {
+        map.setView([lat, lng], 6);
+      });
+    });
+    tableBody.appendChild(row);
+  });
+
+  var summaryTextElement = document.getElementById("summary-text");
+  var totalDeployments = markers.length;
+  var totalCountries = Object.keys(countryCounts).length;
+  summaryTextElement.innerHTML = `Magistrala currently has <span class="fw-semibold">${totalDeployments}</span> deployments in <span class="fw-semibold">${totalCountries}</span> countries.`;
+
+  var summaryTop = document.getElementById("summary-top");
+  if (summaryTop.style.display === "block") {
+    summaryTop.innerHTML = summaryTextElement.innerHTML;
+  }
+}
+
+// Function to retrieve coordinates for a given country using Nominatim API
+function getCountryCoordinates(country, callback) {
+  var url =
+    "https://nominatim.openstreetmap.org/search?format=json&q=" +
+    encodeURIComponent(country);
+
+  fetch(url)
+    .then(function (response) {
+      return response.json();
+    })
+    .then(function (data) {
+      if (data.length > 0) {
+        var lat = parseFloat(data[0].lat);
+        var lng = parseFloat(data[0].lon);
+        callback(lat, lng);
+      } else {
+        console.log("Coordinates not found for country: " + country);
+      }
+    })
+    .catch(function (error) {
+      console.log("Error retrieving coordinates:", error);
+    });
+}
+
+function logJSONData() {
+  // Get map data from global variable injected by Go template
+  if (!window.MAP_DATA) {
+    console.error("MAP_DATA not found. Check if the Go template is rendering correctly.");
+    return;
+  }
+  const obj = JSON.parse(window.MAP_DATA);
+
+  obj.Telemetry.forEach((tel) => {
+    const last_seen = new Date(tel.last_seen);
+    const marker = L.circle([tel.latitude, tel.longitude], {
+      radius: 1000,
+    }).bindPopup(
+      `<h3>Deployment details</h3>
+                    <p style="font-size: 12px;">version:\t${
+                      tel.magistrala_version
+                    }</p>
+                    <p style="font-size: 12px;">last seen:\t${last_seen}</p>
+                    <p style="font-size: 12px;">country:\t${
+                      tel.country
+                    }</p>
+                    <p style="font-size: 12px;">city:\t${tel.city}</p>
+                    <p style="font-size: 12px;">Services:\t${tel.services.join(
+                      ", "
+                    )}</p>`
+    );
+
+    allMarkers.push({
+      marker: marker,
+      data: tel
+    });
+  });
+
+  map.addLayer(markerClusterGroup);
+  filterMarkers({});
+}
+logJSONData();
