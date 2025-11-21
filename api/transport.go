@@ -179,7 +179,6 @@ func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
 			return nil, err
 		}
 	}
-
 	co, err := ReadStringQuery(r, countryKey, "")
 	if err != nil {
 		return nil, err
