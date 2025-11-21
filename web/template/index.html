@@ -121,7 +121,7 @@
             ></button>
           </div>
 
-          <form id="filter-form" onsubmit="applyFilter(event)">
+          <form id="filter-form">
             <div class="modal-body">
               <div id="error-message" class="error-message"></div>
               <div class="mb-3">
@@ -183,7 +183,7 @@
               >
                 Close
               </button>
-              <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">Reset</button>
+              <button type="button" class="btn btn-outline-secondary" id="reset-filters-btn">Reset</button>
               <button type="submit" class="btn my-button">Apply</button>
             </div>
           </form>

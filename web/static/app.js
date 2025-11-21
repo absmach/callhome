@@ -34,13 +34,9 @@ L.control
 var allMarkers = [];
 var markerClusterGroup = L.markerClusterGroup();
 
-function resetFilters() {
-  // Reload the page without any query parameters
-  window.location.href = window.location.pathname;
-}
-
-// Add date validation listeners
+// Add all event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+  // Date validation listeners
   const fromDate = document.getElementById("from-date");
   const toDate = document.getElementById("to-date");
 
@@ -55,7 +51,24 @@ document.addEventListener('DOMContentLoaded', function() {
       fromDate.max = this.value;
     }
   });
+
+  // Form submit listener
+  const filterForm = document.getElementById("filter-form");
+  if (filterForm) {
+    filterForm.addEventListener("submit", applyFilter);
+  }
+
+  // Reset button listener
+  const resetBtn = document.getElementById("reset-filters-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", resetFilters);
+  }
 });
+
+function resetFilters() {
+  // Reload the page without any query parameters
+  window.location.href = window.location.pathname;
+}
 
 function applyFilter(event) {
   event.preventDefault();
@@ -102,7 +115,7 @@ function applyFilter(event) {
 
   // Reload page with query parameters
   window.location.href = window.location.pathname + '?' + params.toString();
-}
+};
 
 function filterMarkers(filters) {
   markerClusterGroup.clearLayers();
@@ -199,40 +212,76 @@ function getCountryCoordinates(country, callback) {
     });
 }
 
-function logJSONData() {
+async function logJSONData() {
   // Get map data from global variable injected by Go template
   if (!window.MAP_DATA) {
     console.error("MAP_DATA not found. Check if the Go template is rendering correctly.");
     return;
   }
-  const obj = JSON.parse(window.MAP_DATA);
 
-  obj.Telemetry.forEach((tel) => {
-    const last_seen = new Date(tel.last_seen);
-    const marker = L.circle([tel.latitude, tel.longitude], {
-      radius: 1000,
-    }).bindPopup(
-      `<h3>Deployment details</h3>
-                    <p style="font-size: 12px;">version:\t${
-                      tel.magistrala_version
-                    }</p>
-                    <p style="font-size: 12px;">last seen:\t${last_seen}</p>
-                    <p style="font-size: 12px;">country:\t${
-                      tel.country
-                    }</p>
-                    <p style="font-size: 12px;">city:\t${tel.city}</p>
-                    <p style="font-size: 12px;">Services:\t${tel.services.join(
-                      ", "
-                    )}</p>`
-    );
+  try {
+    const obj = JSON.parse(window.MAP_DATA);
+    const telemetryData = obj.Telemetry || [];
 
-    allMarkers.push({
-      marker: marker,
-      data: tel
-    });
-  });
+    // Show spinner while loading markers
+    const spinner = document.getElementById("spinner-overlay");
+    if (spinner && telemetryData.length > 0) {
+      spinner.style.display = "flex";
+    }
 
-  map.addLayer(markerClusterGroup);
-  filterMarkers({});
+    // Process markers in batches to avoid blocking the UI
+    const batchSize = 100;
+    for (let i = 0; i < telemetryData.length; i += batchSize) {
+      const batch = telemetryData.slice(i, i + batchSize);
+
+      // Process batch asynchronously
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          batch.forEach((tel) => {
+            const last_seen = new Date(tel.last_seen);
+            const marker = L.circle([tel.latitude, tel.longitude], {
+              radius: 1000,
+            }).bindPopup(
+              `<h3>Deployment details</h3>
+                        <p style="font-size: 12px;">version:\t${
+                          tel.magistrala_version
+                        }</p>
+                        <p style="font-size: 12px;">last seen:\t${last_seen}</p>
+                        <p style="font-size: 12px;">country:\t${
+                          tel.country
+                        }</p>
+                        <p style="font-size: 12px;">city:\t${tel.city}</p>
+                        <p style="font-size: 12px;">Services:\t${tel.services.join(
+                          ", "
+                        )}</p>`
+            );
+
+            allMarkers.push({
+              marker: marker,
+              data: tel
+            });
+          });
+          resolve();
+        });
+      });
+    }
+
+    // Add all markers to the map and apply filters
+    map.addLayer(markerClusterGroup);
+    filterMarkers({});
+
+    // Hide spinner
+    if (spinner) {
+      spinner.style.display = "none";
+    }
+  } catch (error) {
+    console.error("Error loading map data:", error);
+    const spinner = document.getElementById("spinner-overlay");
+    if (spinner) {
+      spinner.style.display = "none";
+    }
+  }
 }
+
+// Initialize map data asynchronously
 logJSONData();
