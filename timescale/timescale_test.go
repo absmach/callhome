@@ -195,4 +195,70 @@ func TestRetrieveSummary(t *testing.T) {
 		assert.NotNil(t, summary)
 		assert.Nil(t, mock.ExpectationsWereMet())
 	})
+
+	t.Run("successful summary with PostgreSQL arrays", func(t *testing.T) {
+		sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+		assert.Nil(t, err)
+
+		defer sqlDB.Close()
+		sqlxDB := sqlx.NewDb(sqlDB, "sqlmock")
+
+		repo := New(sqlxDB)
+
+		// Mock data for multiple countries with arrays
+		cities1 := pq.Array([]string{"New York", "Los Angeles"})
+		services1 := pq.Array([]string{"auth", "users"})
+		versions1 := pq.Array([]string{"0.14.0", "0.13.0"})
+
+		cities2 := pq.Array([]string{"London", "Manchester"})
+		services2 := pq.Array([]string{"things", "users"})
+		versions2 := pq.Array([]string{"0.14.0"})
+
+		rows := sqlmock.NewRows(
+			[]string{"country", "number_of_deployments", "cities", "services", "versions"},
+		).AddRow("USA", 5, cities1, services1, versions1).
+			AddRow("UK", 3, cities2, services2, versions2)
+
+		mock.ExpectQuery("SELECT.*country.*number_of_deployments.*cities.*services.*versions.*FROM telemetry.*GROUP BY country").WillReturnRows(rows)
+
+		summary, err := repo.RetrieveSummary(ctx, callhome.TelemetryFilters{})
+		assert.Nil(t, err)
+		assert.NotNil(t, summary)
+
+		// Verify countries
+		assert.Equal(t, 2, len(summary.Countries))
+		assert.Equal(t, 8, summary.TotalDeployments) // 5 + 3
+
+		// Verify unique cities (should have 4 unique cities)
+		assert.Equal(t, 4, len(summary.Cities))
+		citiesMap := make(map[string]bool)
+		for _, city := range summary.Cities {
+			citiesMap[city] = true
+		}
+		assert.True(t, citiesMap["New York"])
+		assert.True(t, citiesMap["Los Angeles"])
+		assert.True(t, citiesMap["London"])
+		assert.True(t, citiesMap["Manchester"])
+
+		// Verify unique services (should have 3 unique services)
+		assert.Equal(t, 3, len(summary.Services))
+		servicesMap := make(map[string]bool)
+		for _, service := range summary.Services {
+			servicesMap[service] = true
+		}
+		assert.True(t, servicesMap["auth"])
+		assert.True(t, servicesMap["users"])
+		assert.True(t, servicesMap["things"])
+
+		// Verify unique versions (should have 2 unique versions)
+		assert.Equal(t, 2, len(summary.Versions))
+		versionsMap := make(map[string]bool)
+		for _, version := range summary.Versions {
+			versionsMap[version] = true
+		}
+		assert.True(t, versionsMap["0.14.0"])
+		assert.True(t, versionsMap["0.13.0"])
+
+		assert.Nil(t, mock.ExpectationsWereMet())
+	})
 }

@@ -106,10 +106,6 @@ func (ts *telemetryService) getCachedOrFetchSummary(ctx context.Context) (Teleme
 func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilters) ([]byte, error) {
 	tmpl := template.Must(template.ParseFiles("./web/template/index.html"))
 
-	if filters.From.IsZero() && filters.To.IsZero() && filters.City == "" && filters.Country == "" && filters.Service == "" && filters.Version == "" {
-		filters.From = time.Now().Add(-time.Hour)
-	}
-
 	summary, err := ts.repo.RetrieveSummary(ctx, filters)
 	if err != nil {
 		return nil, err
@@ -145,17 +141,21 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 		to = strings.ReplaceAll(to, "Z", "")
 	}
 	data := struct {
-		Countries       string
-		Cities          string
-		FilterCountries []CountrySummary
-		FilterCities    []string
-		FilterServices  []string
-		FilterVersions  []string
-		NoDeployments   int
-		NoCountries     int
-		MapData         string
-		From            string
-		To              string
+		Countries         string
+		Cities            string
+		FilterCountries   []CountrySummary
+		FilterCities      []string
+		FilterServices    []string
+		FilterVersions    []string
+		NoDeployments     int
+		NoCountries       int
+		MapData           string
+		From              string
+		To                string
+		SelectedCountry   string
+		SelectedCity      string
+		SelectedService   string
+		SelectedVersion   string
 	}{
 		Countries:       string(countries),
 		FilterCountries: unfilteredSummary.Countries,
@@ -167,6 +167,10 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 		MapData:         string(pg),
 		From:            from,
 		To:              to,
+		SelectedCountry: filters.Country,
+		SelectedCity:    filters.City,
+		SelectedService: filters.Service,
+		SelectedVersion: filters.Version,
 	}
 
 	var res bytes.Buffer

@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 )
 
@@ -151,11 +152,11 @@ func (r repo) RetrieveSummary(ctx context.Context, filters callhome.TelemetryFil
 	`, filterQuery)
 
 	type queryResult struct {
-		Country       string   `db:"country"`
-		NoDeployments int      `db:"number_of_deployments"`
-		Cities        []string `db:"cities"`
-		Services      []string `db:"services"`
-		Versions      []string `db:"versions"`
+		Country       string         `db:"country"`
+		NoDeployments int            `db:"number_of_deployments"`
+		Cities        pq.StringArray `db:"cities"`
+		Services      pq.StringArray `db:"services"`
+		Versions      pq.StringArray `db:"versions"`
 	}
 
 	rows, err := r.db.NamedQueryContext(ctx, q, params)

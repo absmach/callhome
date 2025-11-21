@@ -92,6 +92,13 @@
 
     <!-- Off canvas end -->
 
+    <!-- Spinner Overlay -->
+    <div id="spinner-overlay" class="spinner-overlay" style="display: none;">
+      <div class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div
       class="modal fade"
@@ -136,7 +143,7 @@
               <select id="country-filter" class="form-select">
                 <option value="">Select a country</option>
                 {{range $i, $country := .FilterCountries}}
-                <option value="{{$country.Country}}">
+                <option value="{{$country.Country}}" {{if eq $country.Country $.SelectedCountry}}selected{{end}}>
                   {{$country.Country}}
                 </option>
                 {{end}}
@@ -145,21 +152,21 @@
               <select id="city-filter" class="form-select">
                 <option value="">Select a city</option>
                 {{range $i, $city := .FilterCities}}
-                <option value="{{$city}}">{{$city}}</option>
+                <option value="{{$city}}" {{if eq $city $.SelectedCity}}selected{{end}}>{{$city}}</option>
                 {{end}}
               </select>
               <label for="version-filter" class="form-label">Version</label>
               <select id="version-filter" class="form-select">
                 <option value="">Select a Version</option>
                 {{range $i, $version := .FilterVersions}}
-                <option value="{{$version}}">{{$version}}</option>
+                <option value="{{$version}}" {{if eq $version $.SelectedVersion}}selected{{end}}>{{$version}}</option>
                 {{end}}
               </select>
               <label for="service-filter" class="form-label">Service</label>
               <select id="service-filter" class="form-select">
                 <option value="">Select a Service</option>
                 {{range $i, $service := .FilterServices}}
-                <option value="{{$service}}">{{$service}}</option>
+                <option value="{{$service}}" {{if eq $service $.SelectedService}}selected{{end}}>{{$service}}</option>
                 {{end}}
               </select>
             </div>
@@ -235,15 +242,8 @@
       var markerClusterGroup = L.markerClusterGroup();
 
       function resetFilters() {
-        document.getElementById("from-date").value = "";
-        document.getElementById("to-date").value = "";
-        document.getElementById("country-filter").value = "";
-        document.getElementById("city-filter").value = "";
-        document.getElementById("service-filter").value = "";
-        document.getElementById("version-filter").value = "";
-        document.getElementById("error-message").textContent = "";
-        filterMarkers({});
-        bootstrap.Modal.getInstance(document.getElementById('applyFilters')).hide();
+        // Reload the page without any query parameters
+        window.location.href = window.location.pathname;
       }
 
       function applyFilter(event) {
@@ -265,16 +265,32 @@
           errorMessage.textContent = "";
         }
 
-        filterMarkers({
-          fromDate: fromDate,
-          toDate: toDate,
-          country: selectedCountry,
-          city: selectedCity,
-          service: selectedService,
-          version: selectedVersion
-        });
+        // Show spinner
+        document.getElementById("spinner-overlay").style.display = "flex";
 
-        bootstrap.Modal.getInstance(document.getElementById('applyFilters')).hide();
+        // Build query parameters for server-side filtering
+        const params = new URLSearchParams();
+        if (fromDate) {
+          params.append('from', fromDate.toISOString());
+        }
+        if (toDate) {
+          params.append('to', toDate.toISOString());
+        }
+        if (selectedCountry) {
+          params.append('country', selectedCountry);
+        }
+        if (selectedCity) {
+          params.append('city', selectedCity);
+        }
+        if (selectedService) {
+          params.append('service', selectedService);
+        }
+        if (selectedVersion) {
+          params.append('version', selectedVersion);
+        }
+
+        // Reload page with query parameters
+        window.location.href = window.location.pathname + '?' + params.toString();
       }
 
       function filterMarkers(filters) {
