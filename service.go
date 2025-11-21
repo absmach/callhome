@@ -8,11 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 )
 
 const pageLimit = 1000
+const summaryCacheTTL = 5 * time.Minute
 
 // Service to receive homing telemetry data, persist and retrieve it.
 type Service interface {
@@ -28,9 +30,16 @@ type Service interface {
 
 var _ Service = (*telemetryService)(nil)
 
+type cachedSummary struct {
+	summary   TelemetrySummary
+	timestamp time.Time
+}
+
 type telemetryService struct {
-	repo   TelemetryRepo
-	locSvc LocationService
+	repo         TelemetryRepo
+	locSvc       LocationService
+	summaryCache *cachedSummary
+	cacheMutex   sync.RWMutex
 }
 
 // New creates a new instance of the telemetry service.
@@ -64,6 +73,35 @@ func (ts *telemetryService) RetrieveSummary(ctx context.Context, filters Telemet
 	return ts.repo.RetrieveSummary(ctx, filters)
 }
 
+// getCachedOrFetchSummary retrieves the unfiltered summary from cache if available and fresh,
+// otherwise fetches it from the repository and updates the cache.
+func (ts *telemetryService) getCachedOrFetchSummary(ctx context.Context) (TelemetrySummary, error) {
+	// Try to read from cache first
+	ts.cacheMutex.RLock()
+	if ts.summaryCache != nil && time.Since(ts.summaryCache.timestamp) < summaryCacheTTL {
+		cached := ts.summaryCache.summary
+		ts.cacheMutex.RUnlock()
+		return cached, nil
+	}
+	ts.cacheMutex.RUnlock()
+
+	// Cache miss or expired, fetch from repository
+	summary, err := ts.repo.RetrieveSummary(ctx, TelemetryFilters{})
+	if err != nil {
+		return TelemetrySummary{}, err
+	}
+
+	// Update cache
+	ts.cacheMutex.Lock()
+	ts.summaryCache = &cachedSummary{
+		summary:   summary,
+		timestamp: time.Now(),
+	}
+	ts.cacheMutex.Unlock()
+
+	return summary, nil
+}
+
 // ServeUI gets the callhome index html page.
 func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilters) ([]byte, error) {
 	tmpl := template.Must(template.ParseFiles("./web/template/index.html"))
@@ -76,10 +114,13 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 	if err != nil {
 		return nil, err
 	}
-	unfilteredSummary, err := ts.repo.RetrieveSummary(ctx, TelemetryFilters{})
+
+	// Use cached unfiltered summary if available and fresh
+	unfilteredSummary, err := ts.getCachedOrFetchSummary(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	telPage, err := ts.repo.RetrieveAll(ctx, PageMetadata{Limit: pageLimit}, filters)
 	if err != nil {
 		return nil, err

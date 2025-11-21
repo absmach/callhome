@@ -171,6 +171,7 @@
               >
                 Close
               </button>
+              <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">Reset</button>
               <button type="submit" class="btn my-button">Apply</button>
             </div>
           </form>
@@ -230,6 +231,21 @@
         })
         .addTo(map);
 
+      var allMarkers = [];
+      var markerClusterGroup = L.markerClusterGroup();
+
+      function resetFilters() {
+        document.getElementById("from-date").value = "";
+        document.getElementById("to-date").value = "";
+        document.getElementById("country-filter").value = "";
+        document.getElementById("city-filter").value = "";
+        document.getElementById("service-filter").value = "";
+        document.getElementById("version-filter").value = "";
+        document.getElementById("error-message").textContent = "";
+        filterMarkers({});
+        bootstrap.Modal.getInstance(document.getElementById('applyFilters')).hide();
+      }
+
       function applyFilter(event) {
         event.preventDefault();
         const errorMessage = document.getElementById("error-message");
@@ -246,49 +262,92 @@
           errorMessage.textContent = "Date range is not valid!";
           return;
         } else {
-          errorMessage.textContent = ""; // Clear error message if the dates are valid
+          errorMessage.textContent = "";
         }
 
-        var fromDateString = fromDate ? fromDate.toISOString() : "";
-        var toDateString = toDate ? toDate.toISOString() : "";
-
-        var fromDate = fromDateInput
-          ? new Date(fromDateInput).toISOString()
-          : "";
-        var toDate = toDateInput ? new Date(toDateInput).toISOString() : "";
-
-        var url = `/?from=${encodeURIComponent(
-          fromDate
-        )}&to=${encodeURIComponent(toDate)}&country=${encodeURIComponent(
-          selectedCountry
-        )}&city=${encodeURIComponent(
-          selectedCity
-        )}&service=${encodeURIComponent(
-          selectedService
-        )}&version=${encodeURIComponent(selectedVersion)}`;
-        window.location.href = url;
-      }
-
-      // Populate the sidebar with the country list and retrieve coordinates
-      var tableBody = document.querySelector("#country-table tbody");
-
-      countries.forEach(function (country) {
-        var row = document.createElement("tr");
-        row.style.cursor = "pointer";
-
-        row.innerHTML = `
-    <td>${country.country}</td>
-    <td><span class="badge bg-secondary">${country.number_of_deployments}</span></td>
-  `;
-
-        row.addEventListener("click", function () {
-          getCountryCoordinates(country.country, function (lat, lng) {
-            map.setView([lat, lng], 6);
-          });
+        filterMarkers({
+          fromDate: fromDate,
+          toDate: toDate,
+          country: selectedCountry,
+          city: selectedCity,
+          service: selectedService,
+          version: selectedVersion
         });
 
-        tableBody.appendChild(row);
-      });
+        bootstrap.Modal.getInstance(document.getElementById('applyFilters')).hide();
+      }
+
+      function filterMarkers(filters) {
+        markerClusterGroup.clearLayers();
+
+        var filteredMarkers = allMarkers.filter(function(item) {
+          var passes = true;
+
+          if (filters.fromDate && new Date(item.data.last_seen) < filters.fromDate) {
+            passes = false;
+          }
+          if (filters.toDate && new Date(item.data.last_seen) > filters.toDate) {
+            passes = false;
+          }
+          if (filters.country && item.data.country !== filters.country) {
+            passes = false;
+          }
+          if (filters.city && item.data.city !== filters.city) {
+            passes = false;
+          }
+          if (filters.version && item.data.magistrala_version !== filters.version) {
+            passes = false;
+          }
+          if (filters.service && !item.data.services.includes(filters.service)) {
+            passes = false;
+          }
+
+          return passes;
+        });
+
+        filteredMarkers.forEach(function(item) {
+          markerClusterGroup.addLayer(item.marker);
+        });
+
+        updateCountryTable(filteredMarkers);
+      }
+
+      function updateCountryTable(markers) {
+        var countryCounts = {};
+        markers.forEach(function(item) {
+          var country = item.data.country;
+          countryCounts[country] = (countryCounts[country] || 0) + 1;
+        });
+
+        var tableBody = document.querySelector("#country-table tbody");
+        tableBody.innerHTML = "";
+
+        Object.entries(countryCounts).sort((a, b) => b[1] - a[1]).forEach(function([country, count]) {
+          var row = document.createElement("tr");
+          row.style.cursor = "pointer";
+          row.innerHTML = `
+            <td>${country}</td>
+            <td><span class="badge bg-secondary">${count}</span></td>
+          `;
+          row.addEventListener("click", function () {
+            getCountryCoordinates(country, function (lat, lng) {
+              map.setView([lat, lng], 6);
+            });
+          });
+          tableBody.appendChild(row);
+        });
+
+        var summaryTextElement = document.getElementById("summary-text");
+        var totalDeployments = markers.length;
+        var totalCountries = Object.keys(countryCounts).length;
+        summaryTextElement.innerHTML = `Magistrala currently has <span class="fw-semibold">${totalDeployments}</span> deployments in <span class="fw-semibold">${totalCountries}</span> countries.`;
+
+        var summaryTop = document.getElementById("summary-top");
+        if (summaryTop.style.display === "block") {
+          summaryTop.innerHTML = summaryTextElement.innerHTML;
+        }
+      }
+
       // Function to retrieve coordinates for a given country using Nominatim API
       function getCountryCoordinates(country, callback) {
         var url =
@@ -316,38 +375,34 @@
       function logJSONData() {
         var mapData = `{{.MapData}}`;
         const obj = JSON.parse(mapData);
-        const groupedPoints = {};
+
         obj.Telemetry.forEach((tel) => {
-          const country = tel.country;
-          if (!groupedPoints[country]) {
-            groupedPoints[country] = [];
-          }
-          groupedPoints[country].push(tel);
-        });
-        Object.entries(groupedPoints).forEach(([country, points]) => {
-          const countryMarkers = L.markerClusterGroup();
-          points.forEach((tel) => {
-            const last_seen = new Date(tel.last_seen);
-            const marker = L.circle([tel.latitude, tel.longitude], {
-              radius: 1000,
-            }).bindPopup(
-              `<h3>Deployment details</h3>
-                            <p style="font-size: 12px;">version:\t${
-                              tel.magistrala_version
-                            }</p>
-                            <p style="font-size: 12px;">last seen:\t${last_seen}</p>
-                            <p style="font-size: 12px;">country:\t${
-                              tel.country
-                            }</p>
-                            <p style="font-size: 12px;">city:\t${tel.city}</p>
-                            <p style="font-size: 12px;">Services:\t${tel.services.join(
-                              ", "
-                            )}</p>`
-            );
-            countryMarkers.addLayer(marker);
+          const last_seen = new Date(tel.last_seen);
+          const marker = L.circle([tel.latitude, tel.longitude], {
+            radius: 1000,
+          }).bindPopup(
+            `<h3>Deployment details</h3>
+                          <p style="font-size: 12px;">version:\t${
+                            tel.magistrala_version
+                          }</p>
+                          <p style="font-size: 12px;">last seen:\t${last_seen}</p>
+                          <p style="font-size: 12px;">country:\t${
+                            tel.country
+                          }</p>
+                          <p style="font-size: 12px;">city:\t${tel.city}</p>
+                          <p style="font-size: 12px;">Services:\t${tel.services.join(
+                            ", "
+                          )}</p>`
+          );
+
+          allMarkers.push({
+            marker: marker,
+            data: tel
           });
-          map.addLayer(countryMarkers);
         });
+
+        map.addLayer(markerClusterGroup);
+        filterMarkers({});
       }
       logJSONData();
     </script>

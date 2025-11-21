@@ -33,8 +33,9 @@ func (mr *mockRepo) Save(ctx context.Context, t callhome.Telemetry) error {
 	return r0
 }
 
-func (*mockRepo) RetrieveSummary(ctx context.Context, filter callhome.TelemetryFilters) (callhome.TelemetrySummary, error) {
-	return callhome.TelemetrySummary{}, nil
+func (mr *mockRepo) RetrieveSummary(ctx context.Context, filter callhome.TelemetryFilters) (callhome.TelemetrySummary, error) {
+	ret := mr.Called(ctx, filter)
+	return ret.Get(0).(callhome.TelemetrySummary), ret.Error(1)
 }
 
 type mockConstructorTestingTNewTelemetryRepo interface {

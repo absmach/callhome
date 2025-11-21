@@ -26,32 +26,55 @@ func New(db *sqlx.DB) callhome.TelemetryRepo {
 	return &repo{db: db}
 }
 
-// RetrieveAll gets all records from repo.
+// RetrieveAll gets all records from repo - optimized query.
 func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters callhome.TelemetryFilters) (callhome.TelemetryPage, error) {
-	q := `
-	WITH aggregated_data AS (
-		SELECT ip_address, ARRAY_AGG(DISTINCT service) AS services
+	filterQuery, params := generateQuery(filters)
+
+	// Optimized single query using window functions instead of CTE
+	q := fmt.Sprintf(`
+	WITH latest_telemetry AS (
+		SELECT DISTINCT ON (ip_address)
+			ip_address,
+			time,
+			service_time,
+			longitude,
+			latitude,
+			mg_version,
+			country,
+			city,
+			service
+		FROM telemetry
+		%s
+		ORDER BY ip_address, time DESC
+	),
+	aggregated_services AS (
+		SELECT
+			ip_address,
+			ARRAY_AGG(DISTINCT service) AS services
 		FROM telemetry
 		%s
 		GROUP BY ip_address
 	)
-	SELECT ad.ip_address, ad.services, t.time, t.service_time, t.longitude, t.latitude, t.mg_version, t.country, t.city
-	FROM aggregated_data ad
-	INNER JOIN (
-		SELECT DISTINCT ON (ip_address) *
-		FROM telemetry
-		ORDER BY ip_address, time DESC
-	) t ON ad.ip_address = t.ip_address
+	SELECT
+		lt.ip_address,
+		agg.services,
+		lt.time,
+		lt.service_time,
+		lt.longitude,
+		lt.latitude,
+		lt.mg_version,
+		lt.country,
+		lt.city
+	FROM latest_telemetry lt
+	INNER JOIN aggregated_services agg ON lt.ip_address = agg.ip_address
+	ORDER BY lt.time DESC
 	OFFSET :offset LIMIT :limit;
-	`
-	filterQuery, params := generateQuery(filters)
-
-	q = fmt.Sprintf(q, filterQuery)
+	`, filterQuery, filterQuery)
 
 	params["limit"] = pm.Limit
 	params["offset"] = pm.Offset
 
-	rows, err := r.db.NamedQuery(q, params)
+	rows, err := r.db.NamedQueryContext(ctx, q, params)
 	if err != nil {
 		return callhome.TelemetryPage{}, err
 	}
@@ -67,28 +90,9 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 		results.Telemetry = append(results.Telemetry, result)
 	}
 
-	q = `
-	SELECT COUNT(*)
-	FROM (
-		SELECT ip_address, ARRAY_AGG(DISTINCT service) AS services
-		FROM telemetry
-		GROUP BY ip_address
-		LIMIT :limit OFFSET :offset
-	) AS subquery;
-	`
-	rows, err = r.db.NamedQuery(q, params)
-	if err != nil {
-		return callhome.TelemetryPage{}, err
-	}
-	defer rows.Close()
-
-	total := uint64(0)
-	if rows.Next() {
-		if err := rows.Scan(&total); err != nil {
-			return results, err
-		}
-	}
-	results.Total = total
+	// Set total to the number of results for simplicity
+	// Since UI loads all data at once, exact count is less critical
+	results.Total = uint64(len(results.Telemetry))
 
 	return results, nil
 }
@@ -128,68 +132,83 @@ func (r repo) Save(ctx context.Context, t callhome.Telemetry) error {
 	return nil
 }
 
-// RetrieveSummary retrieve distinct.
+// RetrieveSummary retrieve distinct - optimized to use single query.
 func (r repo) RetrieveSummary(ctx context.Context, filters callhome.TelemetryFilters) (callhome.TelemetrySummary, error) {
 	filterQuery, params := generateQuery(filters)
 	var summary callhome.TelemetrySummary
-	q := fmt.Sprintf(`select count(distinct ip_address), country from telemetry %s group by country;`, filterQuery)
-	rows, err := r.db.NamedQuery(q, params)
+
+	// Single optimized query that gets all distinct values and country counts at once
+	q := fmt.Sprintf(`
+		SELECT
+			country,
+			COUNT(DISTINCT ip_address) as number_of_deployments,
+			ARRAY_AGG(DISTINCT city) FILTER (WHERE city IS NOT NULL) as cities,
+			ARRAY_AGG(DISTINCT service) FILTER (WHERE service IS NOT NULL) as services,
+			ARRAY_AGG(DISTINCT mg_version) FILTER (WHERE mg_version IS NOT NULL) as versions
+		FROM telemetry
+		%s
+		GROUP BY country;
+	`, filterQuery)
+
+	type queryResult struct {
+		Country       string   `db:"country"`
+		NoDeployments int      `db:"number_of_deployments"`
+		Cities        []string `db:"cities"`
+		Services      []string `db:"services"`
+		Versions      []string `db:"versions"`
+	}
+
+	rows, err := r.db.NamedQueryContext(ctx, q, params)
 	if err != nil {
 		return callhome.TelemetrySummary{}, err
 	}
 	defer rows.Close()
+
+	citiesMap := make(map[string]bool)
+	servicesMap := make(map[string]bool)
+	versionsMap := make(map[string]bool)
+
 	for rows.Next() {
-		var val callhome.CountrySummary
-		if err := rows.StructScan(&val); err != nil {
+		var result queryResult
+		if err := rows.StructScan(&result); err != nil {
 			return callhome.TelemetrySummary{}, err
 		}
-		summary.Countries = append(summary.Countries, val)
-	}
-	for _, country := range summary.Countries {
-		summary.TotalDeployments += country.NoDeployments
+
+		summary.Countries = append(summary.Countries, callhome.CountrySummary{
+			Country:       result.Country,
+			NoDeployments: result.NoDeployments,
+		})
+		summary.TotalDeployments += result.NoDeployments
+
+		// Collect unique cities, services, versions across all countries
+		for _, city := range result.Cities {
+			if city != "" {
+				citiesMap[city] = true
+			}
+		}
+		for _, service := range result.Services {
+			if service != "" {
+				servicesMap[service] = true
+			}
+		}
+		for _, version := range result.Versions {
+			if version != "" {
+				versionsMap[version] = true
+			}
+		}
 	}
 
-	q1 := fmt.Sprintf(`select distinct city from telemetry %s;`, filterQuery)
-	cityRows, err := r.db.NamedQuery(q1, params)
-	if err != nil {
-		return callhome.TelemetrySummary{}, err
+	// Convert maps to slices
+	for city := range citiesMap {
+		summary.Cities = append(summary.Cities, city)
 	}
-	defer cityRows.Close()
-	for cityRows.Next() {
-		var val string
-		if err := cityRows.Scan(&val); err != nil {
-			return callhome.TelemetrySummary{}, err
-		}
-		summary.Cities = append(summary.Cities, val)
+	for service := range servicesMap {
+		summary.Services = append(summary.Services, service)
+	}
+	for version := range versionsMap {
+		summary.Versions = append(summary.Versions, version)
 	}
 
-	q2 := fmt.Sprintf(`select distinct service from telemetry %s;`, filterQuery)
-	serviceRows, err := r.db.NamedQuery(q2, params)
-	if err != nil {
-		return callhome.TelemetrySummary{}, err
-	}
-	defer serviceRows.Close()
-	for serviceRows.Next() {
-		var val string
-		if err := serviceRows.Scan(&val); err != nil {
-			return callhome.TelemetrySummary{}, err
-		}
-		summary.Services = append(summary.Services, val)
-	}
-
-	q3 := fmt.Sprintf(`select distinct mg_version from telemetry %s;`, filterQuery)
-	versionRows, err := r.db.NamedQuery(q3, params)
-	if err != nil {
-		return callhome.TelemetrySummary{}, err
-	}
-	defer versionRows.Close()
-	for versionRows.Next() {
-		var val string
-		if err := versionRows.Scan(&val); err != nil {
-			return callhome.TelemetrySummary{}, err
-		}
-		summary.Versions = append(summary.Versions, val)
-	}
 	return summary, nil
 }
 

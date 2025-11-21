@@ -90,3 +90,34 @@ func TestSave(t *testing.T) {
 		assert.Nil(t, err)
 	})
 }
+
+func TestRetrieveSummary(t *testing.T) {
+	ctx := context.TODO()
+	mockSummary := callhome.TelemetrySummary{
+		Countries: []callhome.CountrySummary{
+			{Country: "TestCountry", NoDeployments: 5},
+		},
+		Cities:           []string{"TestCity"},
+		Services:         []string{"TestService"},
+		Versions:         []string{"v1.0"},
+		TotalDeployments: 5,
+	}
+
+	t.Run("failed repo retrieve", func(t *testing.T) {
+		timescaleRepo := repoMocks.NewTelemetryRepo(t)
+		svc := callhome.New(timescaleRepo, nil)
+		timescaleRepo.On("RetrieveSummary", mock.Anything, mock.Anything).Return(callhome.TelemetrySummary{}, timescale.ErrSaveEvent)
+		_, err := svc.RetrieveSummary(ctx, callhome.TelemetryFilters{})
+		assert.NotNil(t, err)
+		assert.Equal(t, timescale.ErrSaveEvent, err)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		timescaleRepo := repoMocks.NewTelemetryRepo(t)
+		svc := callhome.New(timescaleRepo, nil)
+		timescaleRepo.On("RetrieveSummary", mock.Anything, mock.Anything).Return(mockSummary, nil)
+		summary, err := svc.RetrieveSummary(ctx, callhome.TelemetryFilters{})
+		assert.Nil(t, err)
+		assert.Equal(t, mockSummary, summary)
+	})
+}
