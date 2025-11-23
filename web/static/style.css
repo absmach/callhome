@@ -12,13 +12,13 @@ body {
   margin: 0;
 }
 .sidebar {
-  width: 25%;
+  width: 30%;
   height: 100%;
   padding: 10px;
 }
 .container {
   height: 100%;
-  width: 75%;
+  width: 70%;
 }
 .main-content {
   flex-grow: 1;
@@ -133,7 +133,7 @@ body {
 .offcanvas {
   border-right: 2px solid #e0e6ed;
   padding: 0;
-  background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+  background: #ffffff;
   border-radius: 0 16px 16px 0;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
   height: 100vh;
@@ -186,7 +186,7 @@ body {
 }
 
 .offcanvas-body {
-  padding: 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 80px);
@@ -198,16 +198,16 @@ body {
   line-height: 1.6;
   color: #495057;
   background: white;
-  padding: 16px;
+  padding: 12px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .scrollable-list {
   background: white;
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
@@ -238,12 +238,12 @@ body {
 }
 
 .table thead th {
-  background: linear-gradient(135deg, #073763 0%, #0a4d8a 100%);
-  color: white;
+  background: #f8f9fa;
+  color: #073763;
   font-weight: 600;
   font-size: 0.9rem;
-  border: none;
-  padding: 12px;
+  border-bottom: 2px solid #dee2e6;
+  padding: 14px 12px;
 }
 
 .table tbody {
