@@ -1,22 +1,39 @@
-// Handle offcanvas parameter
+// Get URL parameters and DOM elements
 const urlParams = new URLSearchParams(window.location.search);
+const summaryBtn = document.getElementById("summary-btn");
+const filterBtn = document.getElementById("filter-btn");
+const summary = document.getElementById("summary");
+const summaryTop = document.getElementById("summary-top");
+
+// Handle offcanvas parameter - converts sidebar to banner
 if (urlParams.get("offcanvas") === "false") {
-  document.getElementById("summary-btn").style.display = "none";
-  document.getElementById("filter-btn").style.display = "none";
+  summaryBtn.style.display = "none";
+  filterBtn.style.display = "none";
 
   const summaryText = document.getElementById("summary-text").innerHTML;
-  const summaryTop = document.getElementById("summary-top");
-  const summary = document.getElementById("summary");
   summary.classList.remove("show");
-  // Show summary at top of map instead
+  // Show summary at top of map as banner
   summaryTop.innerHTML = summaryText;
   summaryTop.style.display = "block";
   summaryTop.style.padding = "10px";
 }
 
+// Handle sidebar parameter - control if sidebar starts collapsed (default: shown)
+const sidebarParam = urlParams.get("sidebar");
+
+// Only apply if offcanvas hasn't already handled visibility
+if (urlParams.get("offcanvas") !== "false") {
+  if (sidebarParam === "hidden") {
+    // Start with sidebar collapsed, but button is still visible
+    summary.classList.remove("show");
+  } else {
+    // Default to shown (sidebar=shown or no sidebar param)
+    summary.classList.add("show");
+  }
+}
+
 // Handle filter parameter (default: shown)
 const filterParam = urlParams.get("filter");
-const filterBtn = document.getElementById("filter-btn");
 
 // Only apply filter visibility if offcanvas hasn't already hidden it
 if (urlParams.get("offcanvas") !== "false") {
@@ -29,10 +46,14 @@ if (urlParams.get("offcanvas") !== "false") {
 }
 
 // Initialize map
+// Detect if page is in an iframe and adjust zoom level accordingly
+const isInIframe = window.self !== window.top;
+const initialZoom = isInIframe ? 2 : 3;
+
 var map = L.map("map", {
   zoomControl: false,
   zoomSnap: 0.01,
-}).setView([15, 0], 3);
+}).setView([15, 0], initialZoom);
 
 L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
   attribution:
