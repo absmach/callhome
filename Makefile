@@ -28,7 +28,10 @@ define make_docker
 endef
 
 define make_dev_cert
-	sudo openssl req -x509 -out ./docker/certbot/conf/live/$(DOMAIN)/fullchain.pem \
+	mkdir -p ./docker/certbot/conf/live/$(DOMAIN)
+	[ -f ./docker/certbot/conf/options-ssl-nginx.conf ] || curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot-nginx/certbot_nginx/_internal/tls_configs/options-ssl-nginx.conf > ./docker/certbot/conf/options-ssl-nginx.conf
+	[ -f ./docker/certbot/conf/ssl-dhparams.pem ] || curl -s https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem > ./docker/certbot/conf/ssl-dhparams.pem
+	openssl req -x509 -out ./docker/certbot/conf/live/$(DOMAIN)/fullchain.pem \
 	-keyout ./docker/certbot/conf/live/$(DOMAIN)/privkey.pem \
 	-newkey rsa:2048 -nodes -sha256 \
 	-subj '/CN=localhost'
