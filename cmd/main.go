@@ -103,7 +103,7 @@ func newService(ctx context.Context, logger *slog.Logger, ipDB string, timescale
 		return nil, err
 	}
 	locSvc = stracing.NewLocationService(tracer, locSvc)
-	svc := callhome.New(ctx, timescaleRepo, locSvc)
+	svc := callhome.New(timescaleRepo, locSvc)
 	svc = stracing.NewService(tracer, svc)
 	counter, latency := internal.MakeMetrics(svcName, "api")
 	svc = api.MetricsMiddleware(svc, counter, latency)
