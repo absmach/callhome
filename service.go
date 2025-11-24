@@ -60,6 +60,7 @@ type telemetryService struct {
 }
 
 // New creates a new instance of the telemetry service.
+// nolint: contextcheck
 func New(repo TelemetryRepo, locSvc LocationService) Service {
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: cacheNumCounters,
@@ -76,11 +77,11 @@ func New(repo TelemetryRepo, locSvc LocationService) Service {
 		cache:  cache,
 	}
 	go func() {
-		ts.prefetch()
+		ts.prefetch(context.Background())
 		ticker := time.NewTicker(summaryCacheTTL)
 		// Prefetch summary and details for last 30 days and for this month.
 		for range ticker.C {
-			ts.prefetch()
+			ts.prefetch(context.Background())
 		}
 	}()
 	return ts
@@ -266,14 +267,15 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 	return res.Bytes(), nil
 }
 
-func (ts telemetryService) prefetch() {
-	ts.getCachedOrFetchSummary(context.Background(), TelemetryFilters{})
+// nolint:errcheck
+func (ts *telemetryService) prefetch(ctx context.Context) {
+	ts.getCachedOrFetchSummary(ctx, TelemetryFilters{})
 	t := time.Now().UTC()
 	filters := TelemetryFilters{
 		From: t.AddDate(0, 0, -30).Round(RoundPeriod),
 		To:   t.Round(RoundPeriod),
 	}
-	ts.getCachedOrFetchTelemetryPage(context.Background(), filters)
+	ts.getCachedOrFetchTelemetryPage(ctx, filters)
 	filters.From = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
-	ts.getCachedOrFetchTelemetryPage(context.Background(), filters)
+	ts.getCachedOrFetchTelemetryPage(ctx, filters)
 }
