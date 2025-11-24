@@ -48,7 +48,7 @@ if (urlParams.get("offcanvas") !== "false") {
 // Initialize map
 // Detect if page is in an iframe and adjust zoom level accordingly
 const isInIframe = window.self !== window.top;
-const initialZoom = isInIframe ? 2 : 3;
+const initialZoom = isInIframe ? 2.5 : 3;
 
 var map = L.map("map", {
   zoomControl: false,
