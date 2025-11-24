@@ -71,6 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+
+document.getElementById('from-date').addEventListener('change', snapToTime);
+document.getElementById('to-date').addEventListener('change', snapToTime);
+
 function resetFilters() {
   // Reload the page without any query parameters
   window.location.href = window.location.pathname;
@@ -86,9 +90,8 @@ function applyFilter(event) {
   var selectedService = document.getElementById("service-filter").value;
   var selectedVersion = document.getElementById("version-filter").value;
 
-  var fromDate = fromDateInput ? new Date(fromDateInput) : null;
-  var toDate = toDateInput ? new Date(toDateInput) : null;
-  if (fromDate && toDate && fromDate > toDate) {
+  // Validate date range (comparing as strings works for ISO format)
+  if (fromDateInput && toDateInput && fromDateInput > toDateInput) {
     errorMessage.textContent = "Date range is not valid! 'To' date must be after 'From' date.";
     return;
   } else {
@@ -100,11 +103,15 @@ function applyFilter(event) {
 
   // Build query parameters for server-side filtering
   const params = new URLSearchParams();
-  if (fromDate) {
-    params.append('from', fromDate.toISOString());
+  if (fromDateInput) {
+    // Treat datetime-local input as UTC by appending Z
+    // Don't use new Date() which would interpret it as local time
+    params.append('from', fromDateInput + ':00Z');
   }
-  if (toDate) {
-    params.append('to', toDate.toISOString());
+  if (toDateInput) {
+    // Treat datetime-local input as UTC by appending Z
+    // Don't use new Date() which would interpret it as local time
+    params.append('to', toDateInput + ':00Z');
   }
   if (selectedCountry) {
     params.append('country', selectedCountry);
@@ -287,6 +294,25 @@ async function logJSONData() {
       spinner.style.display = "none";
     }
   }
+}
+
+
+
+
+function snapToTime(e) {
+  const dt = new Date(e.target.value);
+  if (isNaN(dt)) return;
+
+  const minutes = dt.getMinutes();
+  const snapped = Math.round(minutes / 15) * 15;
+  dt.setMinutes(snapped);
+  dt.setSeconds(0);
+
+  // Re-apply snapped time back to the input
+  const pad = (n) => String(n).padStart(2, "0");
+  e.target.value =
+    `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}` +
+    `T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
 
 // Initialize map data asynchronously

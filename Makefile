@@ -46,7 +46,7 @@ define make_dev_cert
 endef
 
 $(PROGRAM): $(SOURCES)
-	npm run
+	npm run build
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) \
 	go build -ldflags "-s -w \
 	-X 'github.com/absmach/callhome.BuildTime=$(TIME)' \
