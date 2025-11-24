@@ -34,8 +34,6 @@ const (
 	defOffset   = 0
 	defLimit    = 10
 	staticDir   = "./web/static"
-
-	roundPeriod = 20 * time.Minute // cache invalidation for empty params on every 10 mins.
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
@@ -153,8 +151,8 @@ func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
 		return listTelemetryReq{
 			offset: defOffset,
 			limit:  defLimit,
-			from:   t.AddDate(0, 0, -30).Round(roundPeriod),
-			to:     t.Round(roundPeriod),
+			from:   t.AddDate(0, 0, -30).Round(callhome.RoundPeriod),
+			to:     t.Round(callhome.RoundPeriod),
 		}, nil
 	}
 	o, err := ReadUintQuery(r, offsetKey, defOffset)

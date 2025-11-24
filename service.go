@@ -17,9 +17,11 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
+const RoundPeriod = 20 * time.Minute // cache invalidation for empty params on every 10 mins.
+
 const (
 	pageLimit        = 1000
-	summaryCacheTTL  = 5 * time.Minute
+	summaryCacheTTL  = 10 * time.Minute
 	cacheNumCounters = 1000      // Number of keys to track frequency (10x max items)
 	cacheMaxCost     = 500 << 20 // 500MB max cache size
 	cacheBufferItems = 64        // Number of keys per Get/Set buffer
@@ -68,11 +70,20 @@ func New(repo TelemetryRepo, locSvc LocationService) Service {
 		panic(fmt.Sprintf("failed to create cache: %v", err))
 	}
 
-	return &telemetryService{
+	ts := &telemetryService{
 		repo:   repo,
 		locSvc: locSvc,
 		cache:  cache,
 	}
+	go func() {
+		ts.prefetch()
+		ticker := time.NewTicker(summaryCacheTTL)
+		// Prefetch summary and details for last 30 days and for this month.
+		for range ticker.C {
+			ts.prefetch()
+		}
+	}()
+	return ts
 }
 
 // Retrieve retrieves homing telemetry data from the specified repository.
@@ -152,7 +163,6 @@ func generateCacheKey(filters TelemetryFilters) string {
 // Thread-safe for concurrent access from multiple users using ristretto.
 func (ts *telemetryService) getCachedOrFetchTelemetryPage(ctx context.Context, filters TelemetryFilters) (TelemetryPage, error) {
 	cacheKey := "page:" + generateCacheKey(filters)
-	fmt.Println("cached key", cacheKey)
 
 	// Try to read from cache first
 	if val, found := ts.cache.Get(cacheKey); found {
@@ -254,4 +264,16 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 		return nil, err
 	}
 	return res.Bytes(), nil
+}
+
+func (ts telemetryService) prefetch() {
+	ts.getCachedOrFetchSummary(context.Background(), TelemetryFilters{})
+	t := time.Now().UTC()
+	filters := TelemetryFilters{
+		From: t.AddDate(0, 0, -30).Round(RoundPeriod),
+		To:   t.Round(RoundPeriod),
+	}
+	ts.getCachedOrFetchTelemetryPage(context.Background(), filters)
+	filters.From = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+	ts.getCachedOrFetchTelemetryPage(context.Background(), filters)
 }

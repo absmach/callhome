@@ -27,6 +27,14 @@ define make_docker
 		-f docker/Dockerfile .
 endef
 
+define make_docker_dev
+	docker build \
+		--no-cache \
+		--build-arg SVC=$(PROGRAM) \
+		--tag=$(MG_DOCKER_IMAGE_NAME_PREFIX)/$(PROGRAM) \
+		-f docker/Dockerfile.dev .
+endef
+
 define make_dev_cert
 	sudo openssl req -x509 -out ./docker/certbot/conf/live/$(DOMAIN)/fullchain.pem \
 	-keyout ./docker/certbot/conf/live/$(DOMAIN)/privkey.pem \
@@ -50,6 +58,9 @@ cleandocker:
 
 docker-image:
 	$(call make_docker)
+
+docker-dev:
+	$(call make_docker_dev)
 
 dev-cert:
 	$(call make_dev_cert)
