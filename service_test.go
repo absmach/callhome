@@ -66,7 +66,7 @@ func TestSave(t *testing.T) {
 			City:         "someCity",
 		}, nil)
 		timescaleRepo.On("Save", ctx, mock.AnythingOfType("callhome.Telemetry")).Return(timescale.ErrSaveEvent)
-		svc := callhome.New(timescaleRepo, locMock)
+		svc := callhome.New(ctx, timescaleRepo, locMock)
 		err := svc.Save(ctx, callhome.Telemetry{})
 		assert.NotNil(t, err)
 		assert.Equal(t, timescale.ErrSaveEvent, err)
@@ -84,7 +84,7 @@ func TestSave(t *testing.T) {
 			City:         "someCity",
 		}, nil)
 		timescaleRepo.On("Save", ctx, mock.AnythingOfType("callhome.Telemetry")).Return(nil)
-		svc := callhome.New(timescaleRepo, locMock)
+		svc := callhome.New(ctx, timescaleRepo, locMock)
 		err := svc.Save(ctx, callhome.Telemetry{})
 		assert.Nil(t, err)
 	})
@@ -101,7 +101,7 @@ func TestSave(t *testing.T) {
 			City:         "someCity",
 		}, nil)
 		timescaleRepo.On("Save", ctx, mock.AnythingOfType("callhome.Telemetry")).Return(nil)
-		svc := callhome.New(timescaleRepo, locMock)
+		svc := callhome.New(ctx, timescaleRepo, locMock)
 		err := svc.Save(ctx, callhome.Telemetry{})
 		assert.Nil(t, err)
 	})
