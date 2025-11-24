@@ -10,12 +10,13 @@ WORKDIR /go/src/github.com/absmach/callhome
 COPY . .
 RUN go mod tidy
 RUN apk update \
-    && apk add make npm\
-    && make $SVC \
-    && mv build/$SVC /exe
+    && apk add make npm
 
-# Build minified assets
-RUN npm install && npm run build
+# Install npm dependencies before building
+RUN npm install
+
+RUN make $SVC \
+    && mv build/$SVC /exe
 
 FROM scratch
 # Certificates are needed so that mailing util can work.
