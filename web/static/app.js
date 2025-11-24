@@ -14,6 +14,20 @@ if (urlParams.get("offcanvas") === "false") {
   summaryTop.style.padding = "10px";
 }
 
+// Handle filter parameter (default: shown)
+const filterParam = urlParams.get("filter");
+const filterBtn = document.getElementById("filter-btn");
+
+// Only apply filter visibility if offcanvas hasn't already hidden it
+if (urlParams.get("offcanvas") !== "false") {
+  if (filterParam === "hidden") {
+    filterBtn.style.display = "none";
+  } else {
+    // Default to shown (filter=shown or no filter param)
+    filterBtn.style.display = "block";
+  }
+}
+
 // Initialize map
 var map = L.map("map", {
   zoomControl: false,

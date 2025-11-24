@@ -146,15 +146,7 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 }
 
 func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
-	if len(r.URL.Query()) == 0 {
-		t := time.Now().UTC()
-		return listTelemetryReq{
-			offset: defOffset,
-			limit:  defLimit,
-			from:   t.AddDate(0, 0, -30).Round(callhome.RoundPeriod),
-			to:     t.Round(callhome.RoundPeriod),
-		}, nil
-	}
+	t := time.Now().UTC()
 	o, err := ReadUintQuery(r, offsetKey, defOffset)
 	if err != nil {
 		return nil, err
@@ -181,12 +173,16 @@ func decodeRetrieve(_ context.Context, r *http.Request) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		from = t.AddDate(0, 0, -30).Round(callhome.RoundPeriod)
 	}
 	if toString != "" {
 		to, err = time.Parse(time.RFC3339, toString)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		to = t.Round(callhome.RoundPeriod)
 	}
 	co, err := ReadStringQuery(r, countryKey, "")
 	if err != nil {
