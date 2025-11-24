@@ -31,26 +31,11 @@ func New(db *sqlx.DB) callhome.TelemetryRepo {
 func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters callhome.TelemetryFilters) (callhome.TelemetryPage, error) {
 	filterQuery, params := generateQuery(filters)
 
-	// Optimized query using window functions to get latest telemetry and services in one scan
-	// First get the limited set of IPs we need, then aggregate services only for those IPs
+	// Optimized query using DISTINCT ON for better performance
+	// DISTINCT ON is much faster than ROW_NUMBER() window function
 	q := fmt.Sprintf(`
-	WITH ranked_telemetry AS (
-		SELECT
-			ip_address,
-			time,
-			service_time,
-			longitude,
-			latitude,
-			mg_version,
-			country,
-			city,
-			service,
-			ROW_NUMBER() OVER (PARTITION BY ip_address ORDER BY time DESC) as rn
-		FROM telemetry
-		%s
-	),
-	latest_per_ip AS (
-		SELECT
+	WITH latest_per_ip AS (
+		SELECT DISTINCT ON (ip_address)
 			ip_address,
 			time,
 			service_time,
@@ -59,8 +44,13 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 			mg_version,
 			country,
 			city
-		FROM ranked_telemetry
-		WHERE rn = 1
+		FROM telemetry
+		%s
+		ORDER BY ip_address, time DESC
+	),
+	limited_ips AS (
+		SELECT *
+		FROM latest_per_ip
 		ORDER BY time DESC
 		LIMIT :limit OFFSET :offset
 	),
@@ -68,7 +58,7 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 		SELECT
 			t.ip_address,
 			ARRAY_AGG(DISTINCT t.service) as services
-		FROM latest_per_ip lpi
+		FROM limited_ips lpi
 		INNER JOIN telemetry t ON t.ip_address = lpi.ip_address
 		GROUP BY t.ip_address
 	)
@@ -82,7 +72,7 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 		lpi.country,
 		lpi.city,
 		s.services
-	FROM latest_per_ip lpi
+	FROM limited_ips lpi
 	LEFT JOIN services_per_ip s ON lpi.ip_address = s.ip_address
 	ORDER BY lpi.time DESC;
 	`, filterQuery)

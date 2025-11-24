@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/caarlos0/env/v7 v7.1.0
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/go-chi/chi v1.5.5
 	github.com/go-kit/kit v0.13.0
 	github.com/go-zoo/bone v1.3.0
@@ -25,6 +26,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

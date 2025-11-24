@@ -77,6 +77,17 @@ func Migration() migrate.MemoryMigrationSource {
 					`DROP INDEX IF EXISTS idx_telemetry_service_ip;`,
 				},
 			},
+			{
+				Id: "telemetry_6",
+				Up: []string{
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_time_ip ON telemetry (time DESC, ip_address);`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_ip_service_incl ON telemetry (ip_address) INCLUDE (service);`,
+				},
+				Down: []string{
+					`DROP INDEX IF EXISTS idx_telemetry_time_ip;`,
+					`DROP INDEX IF EXISTS idx_telemetry_ip_service_incl;`,
+				},
+			},
 		},
 	}
 }

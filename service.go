@@ -6,16 +6,25 @@ package callhome
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
+
+	"github.com/dgraph-io/ristretto"
 )
 
 const (
-	pageLimit       = 1000
-	summaryCacheTTL = 5 * time.Minute
+	pageLimit        = 1000
+	summaryCacheTTL  = 5 * time.Minute
+	cacheNumCounters = 1000      // Number of keys to track frequency (10x max items)
+	cacheMaxCost     = 500 << 20 // 500MB max cache size
+	cacheBufferItems = 64        // Number of keys per Get/Set buffer
+	cacheCost        = 1 << 20   // Estimated cost per entry (~1MB)
+	summaryCacheCost = 10 << 10  // Estimated cost per summary (~10KB)
 )
 
 // Service to receive homing telemetry data, persist and retrieve it.
@@ -37,18 +46,32 @@ type cachedSummary struct {
 	timestamp time.Time
 }
 
+type cachedTelemetryPage struct {
+	page      TelemetryPage
+	timestamp time.Time
+}
+
 type telemetryService struct {
-	repo         TelemetryRepo
-	locSvc       LocationService
-	summaryCache *cachedSummary
-	cacheMutex   sync.RWMutex
+	repo   TelemetryRepo
+	locSvc LocationService
+	cache  *ristretto.Cache
 }
 
 // New creates a new instance of the telemetry service.
 func New(repo TelemetryRepo, locSvc LocationService) Service {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cacheNumCounters,
+		MaxCost:     cacheMaxCost,
+		BufferItems: cacheBufferItems,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to create cache: %v", err))
+	}
+
 	return &telemetryService{
 		repo:   repo,
 		locSvc: locSvc,
+		cache:  cache,
 	}
 }
 
@@ -75,51 +98,103 @@ func (ts *telemetryService) RetrieveSummary(ctx context.Context, filters Telemet
 	return ts.repo.RetrieveSummary(ctx, filters)
 }
 
-// getCachedOrFetchSummary retrieves the unfiltered summary from cache if available and fresh,
+// getCachedOrFetchSummary retrieves summary from cache if available and fresh,
 // otherwise fetches it from the repository and updates the cache.
-func (ts *telemetryService) getCachedOrFetchSummary(ctx context.Context) (TelemetrySummary, error) {
-	// Try to read from cache first
-	ts.cacheMutex.RLock()
-	if ts.summaryCache != nil && time.Since(ts.summaryCache.timestamp) < summaryCacheTTL {
-		cached := ts.summaryCache.summary
-		ts.cacheMutex.RUnlock()
-		return cached, nil
-	}
-	ts.cacheMutex.RUnlock()
+// Thread-safe for concurrent access from multiple users using ristretto.
+func (ts *telemetryService) getCachedOrFetchSummary(ctx context.Context, filters TelemetryFilters) (TelemetrySummary, error) {
+	cacheKey := "summary:" + generateCacheKey(filters)
 
-	// Cache miss or expired, fetch from repository
-	summary, err := ts.repo.RetrieveSummary(ctx, TelemetryFilters{})
+	// Try to read from cache first
+	if val, found := ts.cache.Get(cacheKey); found {
+		if cached, ok := val.(*cachedSummary); ok {
+			if time.Since(cached.timestamp) < summaryCacheTTL {
+				// Cache hit and still fresh
+				return cached.summary, nil
+			}
+		}
+	}
+
+	// Cache miss or expired - fetch from repository
+	summary, err := ts.repo.RetrieveSummary(ctx, filters)
 	if err != nil {
 		return TelemetrySummary{}, err
 	}
 
 	// Update cache
-	ts.cacheMutex.Lock()
-	ts.summaryCache = &cachedSummary{
+	ts.cache.Set(cacheKey, &cachedSummary{
 		summary:   summary,
 		timestamp: time.Now(),
-	}
-	ts.cacheMutex.Unlock()
+	}, summaryCacheCost)
+	ts.cache.Wait() // Wait for value to pass through buffers
 
 	return summary, nil
+}
+
+// generateCacheKey creates a unique cache key from TelemetryFilters.
+func generateCacheKey(filters TelemetryFilters) string {
+	// Create a deterministic string representation of filters
+	key := fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+		filters.Country,
+		filters.City,
+		filters.Service,
+		filters.Version,
+		filters.From.Format(time.RFC3339Nano),
+		filters.To.Format(time.RFC3339Nano),
+	)
+
+	// Hash to keep keys short and uniform
+	hash := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(hash[:])
+}
+
+// getCachedOrFetchTelemetryPage retrieves telemetry page from cache if available and fresh,
+// otherwise fetches it from the repository and updates the cache.
+// Thread-safe for concurrent access from multiple users using ristretto.
+func (ts *telemetryService) getCachedOrFetchTelemetryPage(ctx context.Context, filters TelemetryFilters) (TelemetryPage, error) {
+	cacheKey := "page:" + generateCacheKey(filters)
+	fmt.Println("cached key", cacheKey)
+
+	// Try to read from cache first
+	if val, found := ts.cache.Get(cacheKey); found {
+		if cached, ok := val.(*cachedTelemetryPage); ok {
+			if time.Since(cached.timestamp) < summaryCacheTTL {
+				// Cache hit and still fresh
+				return cached.page, nil
+			}
+		}
+	}
+
+	// Cache miss or expired - fetch from repository
+	telPage, err := ts.repo.RetrieveAll(ctx, PageMetadata{Limit: pageLimit}, filters)
+	if err != nil {
+		return TelemetryPage{}, err
+	}
+
+	// Update cache
+	ts.cache.Set(cacheKey, &cachedTelemetryPage{
+		page:      telPage,
+		timestamp: time.Now(),
+	}, cacheCost)
+	ts.cache.Wait() // Wait for value to pass through buffers
+
+	return telPage, nil
 }
 
 // ServeUI gets the callhome index html page.
 func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilters) ([]byte, error) {
 	tmpl := template.Must(template.ParseFiles("./web/template/index.html"))
-
-	summary, err := ts.repo.RetrieveSummary(ctx, filters)
+	summary, err := ts.getCachedOrFetchSummary(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use cached unfiltered summary if available and fresh
-	unfilteredSummary, err := ts.getCachedOrFetchSummary(ctx)
+	// Use cached unfiltered summary for filter dropdowns
+	unfilteredSummary, err := ts.getCachedOrFetchSummary(ctx, TelemetryFilters{})
 	if err != nil {
 		return nil, err
 	}
 
-	telPage, err := ts.repo.RetrieveAll(ctx, PageMetadata{Limit: pageLimit}, filters)
+	telPage, err := ts.getCachedOrFetchTelemetryPage(ctx, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +249,6 @@ func (ts *telemetryService) ServeUI(ctx context.Context, filters TelemetryFilter
 		SelectedService: filters.Service,
 		SelectedVersion: filters.Version,
 	}
-
 	var res bytes.Buffer
 	if err = tmpl.Execute(&res, data); err != nil {
 		return nil, err

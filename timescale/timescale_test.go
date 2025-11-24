@@ -143,7 +143,7 @@ func TestRetrieveAll(t *testing.T) {
 			[]string{"ip_address", "time", "service_time", "longitude", "latitude", "mg_version", "country", "city", "services"},
 		).AddRow(mTel.IpAddress, mTel.LastSeen, mTel.ServiceTime, mTel.Longitude, mTel.Latitude, mTel.Version, mTel.Country, mTel.City, services)
 
-		mock.ExpectQuery("WITH ranked_telemetry(.*)").WillReturnRows(rows)
+		mock.ExpectQuery("WITH latest_per_ip(.*)").WillReturnRows(rows)
 
 		tp, err := repo.RetrieveAll(ctx, callhome.PageMetadata{Limit: 10, Offset: 0}, callhome.TelemetryFilters{})
 		assert.Nil(t, err)
