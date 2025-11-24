@@ -35,8 +35,9 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 	// DISTINCT ON is much faster than ROW_NUMBER() window function
 	q := fmt.Sprintf(`
 	WITH latest_per_ip AS (
-		SELECT DISTINCT ON (ip_address)
+		SELECT DISTINCT ON (COALESCE(deployment_id, ip_address))
 			ip_address,
+			deployment_id,
 			time,
 			service_time,
 			longitude,
@@ -46,7 +47,7 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 			city
 		FROM telemetry
 		%s
-		ORDER BY ip_address, time DESC
+		ORDER BY COALESCE(deployment_id, ip_address), time DESC
 	),
 	limited_ips AS (
 		SELECT *
@@ -56,11 +57,11 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 	),
 	services_per_ip AS (
 		SELECT
-			t.ip_address,
+			COALESCE(t.deployment_id, t.ip_address) as id,
 			ARRAY_AGG(DISTINCT t.service) as services
 		FROM limited_ips lpi
-		INNER JOIN telemetry t ON t.ip_address = lpi.ip_address
-		GROUP BY t.ip_address
+		INNER JOIN telemetry t ON COALESCE(t.deployment_id, t.ip_address) = COALESCE(lpi.deployment_id, lpi.ip_address)
+		GROUP BY COALESCE(t.deployment_id, t.ip_address)
 	)
 	SELECT
 		lpi.ip_address,
@@ -73,7 +74,7 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 		lpi.city,
 		s.services
 	FROM limited_ips lpi
-	LEFT JOIN services_per_ip s ON lpi.ip_address = s.ip_address
+	LEFT JOIN services_per_ip s ON COALESCE(lpi.deployment_id, lpi.ip_address) = s.id
 	ORDER BY lpi.time DESC;
 	`, filterQuery)
 
@@ -105,9 +106,9 @@ func (r repo) RetrieveAll(ctx context.Context, pm callhome.PageMetadata, filters
 
 // Save creates record in repo.
 func (r repo) Save(ctx context.Context, t callhome.Telemetry) error {
-	q := `INSERT INTO telemetry (ip_address, mac_address, longitude, latitude,
+	q := `INSERT INTO telemetry (ip_address, mac_address, deployment_id, longitude, latitude,
 		mg_version, service, time, country, city, service_time)
-		VALUES (:ip_address, :mac_address, :longitude, :latitude,
+		VALUES (:ip_address, :mac_address, :deployment_id, :longitude, :latitude,
 			:mg_version, :service, :time, :country, :city, :service_time);`
 
 	tx, err := r.db.BeginTxx(ctx, nil)
@@ -147,7 +148,7 @@ func (r repo) RetrieveSummary(ctx context.Context, filters callhome.TelemetryFil
 	q := fmt.Sprintf(`
 		SELECT
 			country,
-			COUNT(DISTINCT ip_address) as number_of_deployments,
+			COUNT(DISTINCT COALESCE(deployment_id, ip_address)) as number_of_deployments,
 			ARRAY_AGG(DISTINCT city) FILTER (WHERE city IS NOT NULL) as cities,
 			ARRAY_AGG(DISTINCT service) FILTER (WHERE service IS NOT NULL) as services,
 			ARRAY_AGG(DISTINCT mg_version) FILTER (WHERE mg_version IS NOT NULL) as versions

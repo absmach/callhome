@@ -17,6 +17,7 @@ type Telemetry struct {
 	Latitude    float64        `json:"latitude,omitempty" db:"latitude"`
 	IpAddress   string         `json:"-" db:"ip_address"`
 	MacAddress  string         `json:"-" db:"mac_address"`
+	DeploymentID string        `json:"-" db:"deployment_id"`
 	Version     string         `json:"magistrala_version,omitempty" db:"mg_version"`
 	LastSeen    time.Time      `json:"last_seen" db:"service_time"`
 	Country     string         `json:"country,omitempty" db:"country"`
