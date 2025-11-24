@@ -18,7 +18,7 @@ type LocationService struct {
 }
 
 func (_m *LocationService) GetLocation(ctx context.Context, ip string) (ip2location.IP2Locationrecord, error) {
-	ret := _m.Called(ip)
+	ret := _m.Called(ctx, ip)
 
 	return ret.Get(0).(ip2location.IP2Locationrecord), ret.Error(1)
 }
