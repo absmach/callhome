@@ -88,6 +88,17 @@ func Migration() migrate.MemoryMigrationSource {
 					`DROP INDEX IF EXISTS idx_telemetry_ip_service_incl;`,
 				},
 			},
+			{
+				Id: "telemetry_7",
+				Up: []string{
+					`SELECT remove_retention_policy('telemetry');`,
+					`SELECT add_retention_policy('telemetry', INTERVAL '1 year');`,
+				},
+				Down: []string{
+					`SELECT remove_retention_policy('telemetry');`,
+					`SELECT add_retention_policy('telemetry', INTERVAL '90 days');`,
+				},
+			},
 		},
 	}
 }
