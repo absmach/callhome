@@ -1,0 +1,9 @@
+# Copyright (c) Abstract Machines
+# SPDX-License-Identifier: Apache-2.0
+
+FROM scratch
+ARG SVC
+COPY build/$SVC /exe
+COPY web /web
+COPY --from=alpine:3.22 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ENTRYPOINT ["/exe"]

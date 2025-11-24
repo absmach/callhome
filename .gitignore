@@ -28,6 +28,5 @@ go.work
 
 # Node.js dependencies and build artifacts
 node_modules/
-package-lock.json
 web/static/*.min.css
 web/static/*.min.js
