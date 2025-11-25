@@ -1,0 +1,56 @@
+name: Deploy Callhome Service
+
+on:
+  workflow_run:
+    workflows: ["Publish Docker image"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SERVER_KEY }}
+          command_timeout: 30m
+          script: |
+            TARGET_DIR="callhome"
+            
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "Directory $TARGET_DIR does not exist. Cloning..."
+              git clone https://github.com/supermq/callhome.git $TARGET_DIR || exit 1
+            fi
+            
+            cd $TARGET_DIR
+            
+            # Fetch latest changes
+            git fetch origin main || exit 1
+            
+            CURRENT_HASH=$(git rev-parse HEAD)
+            
+            # Pull latest changes
+            git pull origin main || exit 1
+            
+            # Check if docker/certbot/init-letsencrypt.sh changed in the range
+            CHANGED_FILES=$(git diff --name-only $CURRENT_HASH HEAD)
+            
+            if echo "$CHANGED_FILES" | grep -q "docker/certbot/init-letsencrypt.sh"; then
+              echo "init-letsencrypt.sh has changed. Running script..."
+              echo "y" | ./docker/certbot/init-letsencrypt.sh
+            else
+              echo "init-letsencrypt.sh has not changed. Skipping."
+            fi
+            
+            docker compose -f docker/docker-compose.yml pull || exit 1
+            
+            # Restart services
+            docker compose -f docker/docker-compose.yml down || exit 1
+            docker compose -f docker/docker-compose.yml up -d || exit 1
+            
+            # Cleanup
+            docker system prune -a -f
