@@ -34,7 +34,7 @@ jobs:
             CURRENT_HASH=$(git rev-parse HEAD)
             
             # Pull latest changes
-            git pull origin main
+            git pull origin main || exit 1
             
             # Check if docker/certbot/init-letsencrypt.sh changed in the range
             CHANGED_FILES=$(git diff --name-only $CURRENT_HASH HEAD)
