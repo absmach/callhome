@@ -110,17 +110,6 @@ func Migration() migrate.MemoryMigrationSource {
 					`ALTER TABLE telemetry DROP COLUMN deployment_id;`,
 				},
 			},
-			{
-				Id: "telemetry_8",
-				Up: []string{
-					`SELECT remove_retention_policy('telemetry');`,
-					`SELECT add_retention_policy('telemetry', INTERVAL '365 days');`,
-				},
-				Down: []string{
-					`SELECT remove_retention_policy('telemetry');`,
-					`SELECT add_retention_policy('telemetry', INTERVAL '90 days');`,
-				},
-			},
 		},
 	}
 }
