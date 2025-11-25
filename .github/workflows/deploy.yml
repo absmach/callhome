@@ -46,7 +46,7 @@ jobs:
               echo "init-letsencrypt.sh has not changed. Skipping."
             fi
             
-            docker compose -f docker/docker-compose.yml pull
+            docker compose -f docker/docker-compose.yml pull || exit 1
             
             # Restart services
             docker compose -f docker/docker-compose.yml down || exit 1
