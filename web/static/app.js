@@ -23,11 +23,14 @@ const sidebarParam = urlParams.get("sidebar");
 
 // Only apply if offcanvas hasn't already handled visibility
 if (urlParams.get("offcanvas") !== "false") {
-  if (sidebarParam === "hidden") {
-    // Start with sidebar collapsed, but button is still visible
+  // Check screen size for responsive behavior
+  const isSmallScreen = window.innerWidth < 768;
+
+  if (sidebarParam === "hidden" || isSmallScreen) {
+    // Start with sidebar collapsed on small screens or when explicitly hidden
     summary.classList.remove("show");
   } else {
-    // Default to shown (sidebar=shown or no sidebar param)
+    // Default to shown (sidebar=shown or no sidebar param) on larger screens
     summary.classList.add("show");
   }
 }
@@ -46,14 +49,10 @@ if (urlParams.get("offcanvas") !== "false") {
 }
 
 // Initialize map
-// Detect if page is in an iframe and adjust zoom level accordingly
-const isInIframe = window.self !== window.top;
-const initialZoom = isInIframe ? 2.8 : 3;
-
 var map = L.map("map", {
   zoomControl: false,
   zoomSnap: 0.01,
-}).setView([15, 0], initialZoom);
+}).setView([15, 0], 2);
 
 L.tileLayer("https://{s}.tile.osm.org/{z}/{x}/{y}.png", {
   attribution:
@@ -197,6 +196,12 @@ function filterMarkers(filters) {
     markerClusterGroup.addLayer(item.marker);
   });
 
+  // Fit map bounds to show all filtered markers
+  if (filteredMarkers.length > 0) {
+    const bounds = L.latLngBounds(filteredMarkers.map(item => [item.data.latitude, item.data.longitude]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }
+
   updateCountryTable(filteredMarkers);
 }
 
@@ -317,6 +322,12 @@ async function logJSONData() {
     // Add all markers to the map and apply filters
     map.addLayer(markerClusterGroup);
     filterMarkers({});
+
+    // Fit map bounds to show all markers
+    if (allMarkers.length > 0) {
+      const bounds = L.latLngBounds(allMarkers.map(item => [item.data.latitude, item.data.longitude]));
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
 
     // Hide spinner
     if (spinner) {
