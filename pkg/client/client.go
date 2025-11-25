@@ -13,8 +13,12 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -23,6 +27,7 @@ const (
 	callHomeSleepTime = 30 * time.Minute
 	backOff           = 10 * time.Second
 	apiKey            = "77e04a7c-f207-40dd-8950-c344871fd516"
+	defDeploymentID   = "/var/lib/magistrala/callhome/deployment_id"
 )
 
 var ipEndpoints = []string{
@@ -32,20 +37,22 @@ var ipEndpoints = []string{
 }
 
 type homingService struct {
-	serviceName string
-	version     string
-	logger      *slog.Logger
-	cancel      context.CancelFunc
-	httpClient  http.Client
+	serviceName  string
+	version      string
+	deploymentID string
+	logger       *slog.Logger
+	cancel       context.CancelFunc
+	httpClient   http.Client
 }
 
 func New(svc, version string, homingLogger *slog.Logger, cancel context.CancelFunc) *homingService {
 	return &homingService{
-		serviceName: svc,
-		version:     version,
-		logger:      homingLogger,
-		cancel:      cancel,
-		httpClient:  *http.DefaultClient,
+		serviceName:  svc,
+		version:      version,
+		deploymentID: getDeploymentID(homingLogger),
+		logger:       homingLogger,
+		cancel:       cancel,
+		httpClient:   *http.DefaultClient,
 	}
 }
 
@@ -56,9 +63,10 @@ func (hs *homingService) CallHome(ctx context.Context) {
 			hs.Stop()
 		default:
 			data := telemetryData{
-				Service:  hs.serviceName,
-				Version:  hs.version,
-				LastSeen: time.Now(),
+				Service:      hs.serviceName,
+				Version:      hs.version,
+				DeploymentID: hs.deploymentID,
+				LastSeen:     time.Now(),
 			}
 
 			var macAddr string
@@ -118,9 +126,10 @@ type telemetryData struct {
 	IPAddress string `json:"ip_address"`
 	// MAC address is used to identify unique machine to avoid duplicates in case
 	// of multiple services running on the same machine (such as a Docker composition).
-	MACAddress string    `json:"mac_address"`
-	Version    string    `json:"magistrala_version"`
-	LastSeen   time.Time `json:"last_seen"`
+	MACAddress   string    `json:"mac_address"`
+	DeploymentID string    `json:"deployment_id"`
+	Version      string    `json:"magistrala_version"`
+	LastSeen     time.Time `json:"last_seen"`
 }
 
 func (hs *homingService) getIP(endpoint string) (string, error) {
@@ -159,4 +168,32 @@ func (hs *homingService) send(telDat *telemetryData) error {
 		return err
 	}
 	return nil
+}
+
+func getDeploymentID(logger *slog.Logger) string {
+	if id := os.Getenv("MG_DEPLOYMENT_ID"); id != "" {
+		return id
+	}
+
+	path := defDeploymentID
+	if p := os.Getenv("MG_CALLHOME_DEPLOYMENT_ID_FILE"); p != "" {
+		path = p
+	}
+
+	if id, err := os.ReadFile(path); err == nil {
+		return string(id)
+	}
+
+	id := uuid.New().String()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		logger.Warn(fmt.Sprintf("failed to create directory for deployment id with error: %v", err))
+		return ""
+	}
+
+	if err := os.WriteFile(path, []byte(id), 0o644); err != nil {
+		logger.Warn(fmt.Sprintf("failed to write deployment id with error: %v", err))
+		return ""
+	}
+
+	return id
 }

@@ -99,6 +99,17 @@ func Migration() migrate.MemoryMigrationSource {
 					`SELECT add_retention_policy('telemetry', INTERVAL '90 days');`,
 				},
 			},
+			{
+				Id: "telemetry_8",
+				Up: []string{
+					`ALTER TABLE telemetry ADD deployment_id TEXT;`,
+					`CREATE INDEX IF NOT EXISTS idx_telemetry_deployment_or_ip ON telemetry (COALESCE(deployment_id, ip_address));`,
+				},
+				Down: []string{
+					`DROP INDEX IF EXISTS idx_telemetry_deployment_id;`,
+					`ALTER TABLE telemetry DROP COLUMN deployment_id;`,
+				},
+			},
 		},
 	}
 }
