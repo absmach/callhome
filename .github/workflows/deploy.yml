@@ -49,8 +49,8 @@ jobs:
             docker compose -f docker/docker-compose.yml pull
             
             # Restart services
-            docker compose -f docker/docker-compose.yml down
-            docker compose -f docker/docker-compose.yml up -d
+            docker compose -f docker/docker-compose.yml down || exit 1
+            docker compose -f docker/docker-compose.yml up -d || exit 1
             
             # Cleanup
             docker system prune -a -f
